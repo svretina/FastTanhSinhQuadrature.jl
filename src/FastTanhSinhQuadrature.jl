@@ -1,8 +1,9 @@
 module FastTanhSinhQuadrature
 
-
 using StaticArrays
 using LambertW
+
+export tanhsinh, integrate
 
 @inline function ordinate(t::T)::T where {T<:Real}
     return tanh(T(π) / 2 * sinh(t))
@@ -15,8 +16,7 @@ end
     return asinh(log((one(T) + t) / (one(T) - t)) / T(π))
 end
 
-function tanhsinh(::Type{T}, n::Int,
-    D::Int)::Tuple{<:AbstractVector{T},<:AbstractVector{T},
+function tanhsinh(::Type{T}, n::Int)::Tuple{<:AbstractVector{T},<:AbstractVector{T},
     T} where {T<:AbstractFloat}
     tmax = inv_ordinate(prevfloat(one(T)))
     h = tmax / n
@@ -26,12 +26,10 @@ function tanhsinh(::Type{T}, n::Int,
     return x, w, h
 end
 
-tanhsinh(n::Int) = tanhsinh(Float64, n, 1)
+tanhsinh(n::Int) = tanhsinh(Float64, n)
 
-function tanhsinh_opt(::Type{T}, n::Int, D::Int,
-    d::Real=π / 2) where {T<:Real}
+function tanhsinh_opt(::Type{T}, n::Int, d::Real=π / 2) where {T<:Real}
     tmax = inv_ordinate(prevfloat(one(T)))
-
     h = hopt(T, n, d)
     if n * h > tmax
         @show n
