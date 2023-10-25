@@ -120,8 +120,8 @@ function integrate(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
 end
 
 # convenience function to convert AbsrtactVectors to SVectors
-function integrate(f::Function, xmin::AbstractVector{T}, xmax::AbstractVector{T}, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T)::T where {T<:Real}
+function integrate(f::Function, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
+    w::AbstractVector{T}, h::T)::T where {T<:Real,S<:Real}
     n = length(xmin)
     return integrate(f, SVector{n,T}(xmin), SVector{n,T}(xmax), x, w, h)
 end
@@ -136,7 +136,7 @@ function quad(f::Function, xmin::T, xmax::T, x::AbstractVector{T}, w::AbstractVe
         return -integrate(f, xmax, xmin, x, w, h)
     end
 
-    if xmin == -1 && xmax == 1
+    if xmin == -one(T) && xmax == one(T)
         return integrate(f, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
@@ -153,7 +153,7 @@ function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVe
         return -integrate(f, xmax, xmin, x, w, h)
     end
 
-    if xmin == -1 && xmax == 1
+    if xmin == -one(T) && xmax == one(T)
         return integrate(f, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
@@ -170,7 +170,7 @@ function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T}, x::AbstractVe
         return -integrate(f, xmax, xmin, x, w, h)
     end
 
-    if xmin == -1 && xmax == 1
+    if xmin == -one(T) && xmax == one(T)
         return integrate(f, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
