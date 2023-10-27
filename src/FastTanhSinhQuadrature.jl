@@ -109,19 +109,7 @@ function integrate(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::Abstr
     return f3()
 end
 
-function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T}, h::T)::T where {T<:Real}
-    f2(x1) = quad(y -> f(x1, y), xmin[2], xmax[2], x, w, h)
-    f3() = quad(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
-    return f3()
-end
-
 ## 3D
-function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T}, h::T)::T where {T<:Real}
-    f1(x1, y1) = quad(z -> f(x1, y1, z), x, w, h)
-    f2(x1) = quad(y -> f1(x1, y), x, w, h)
-    f3() = quad(x1 -> f2(x1), x, w, h)
-    return f3()
-end
 
 function integrate(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
     x::AbstractVector{T},
@@ -137,6 +125,19 @@ function integrate(f::Function, xmin::AbstractVector{S}, xmax::AbstractVector{S}
     w::AbstractVector{T}, h::T)::T where {T<:Real,S<:Real}
     n = length(xmin)
     return integrate(f, SVector{n,T}(xmin), SVector{n,T}(xmax), x, w, h)
+end
+
+function _integrate(f::Function, D::Int, x::AbstractVector{T}, w::AbstractVector{T}, h::T)::T where {T<:Real}
+    if D == 2
+        f2(x1) = quad(y -> f(x1, y), xmin[2], xmax[2], x, w, h)
+        f3() = quad(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
+        return f3()
+    elseif D == 3
+        g1(x1, y1) = quad(z -> f(x1, y1, z), x, w, h)
+        g2(x1) = quad(y -> g1(x1, y), x, w, h)
+        g3() = quad(x1 -> g2(x1), x, w, h)
+        return f3()
+    end
 end
 
 # helper function for generality
@@ -163,7 +164,7 @@ function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVe
     end
 
     if xmin == -SVector{2,T}(ones(T, 2)) && xmax == SVector{2,T}(ones(T, 2))
-        return integrate(f, x, w, h)
+        return _integrate(f, 2, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
     end
@@ -176,7 +177,7 @@ function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T}, x::AbstractVe
     end
 
     if xmin == -SVector{3,T}(ones(T, 3)) && xmax == SVector{3,T}(ones(T, 3))
-        return integrate(f, x, w, h)
+        return _integrate(f, 3, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
     end
