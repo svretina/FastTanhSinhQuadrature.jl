@@ -5,19 +5,18 @@ using LambertW
 
 export tanhsinh, integrate, quad
 
-@inline function ordinate(t::T)::T where {T<:Real}
+@inline function ordinate(t::T) where {T<:Real}
     return tanh(T(π) / 2 * sinh(t))
 end
-@inline function weight(t::T)::T where {T<:Real}
+@inline function weight(t::T) where {T<:Real}
     return ((T(π) / 2) * cosh(t)) / cosh(T(π) / 2 * sinh(t))^2
 end
 
-@inline function inv_ordinate(t::T)::T where {T<:Real}
+@inline function inv_ordinate(t::T) where {T<:Real}
     return asinh(log((one(T) + t) / (one(T) - t)) / T(π))
 end
 
-function tanhsinh(::Type{T}, n::Int)::Tuple{<:AbstractVector{T},<:AbstractVector{T},
-    T} where {T<:AbstractFloat}
+function tanhsinh(::Type{T}, n::Int) where {T<:AbstractFloat}
     tmax = inv_ordinate(prevfloat(one(T)))
     h = tmax / n
     t = h:h:tmax
@@ -46,7 +45,7 @@ function hopt(::Type{T}, n::Int, d::Real=π / 2) where {T}
 end
 
 function tanhsinh!(::Type{T}, x::AbstractVector{T}, w::AbstractVector{T},
-    h::MVector{1,T}, n::Int)::Nothing where {T<:Real}
+    h::MVector{1,T}, n::Int) where {T<:Real}
     tmax = inv_ordinate(prevfloat(one(T)))
     h[1] = tmax / n
     for i in 1:n
@@ -78,7 +77,7 @@ end
 
 # [-1,1] by default 1D
 function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T},
-    h::T)::T where {T<:Real}
+    h::T) where {T<:Real}
     s = weight(zero(T)) * f(zero(T))
     for i in 1:length(x)
         s += w[i] * (f(-x[i]) + f(x[i]))
@@ -124,12 +123,12 @@ end
 
 # convenience function to convert AbsrtactVectors to SVectors
 function integrate(f::Function, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T)::T where {T<:Real,S<:Real}
+    w::AbstractVector{T}, h::T) where {T<:Real,S<:Real}
     n = length(xmin)
     return integrate(f, SVector{n,T}(xmin), SVector{n,T}(xmax), x, w, h)
 end
 
-function _integrate(f::Function, D::Int, x::AbstractVector{T}, w::AbstractVector{T}, h::T)::T where {T<:Real}
+function _integrate(f::Function, D::Int, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
     if D == 2
         f2(x1) = quad(y -> f(x1, y), xmin[2], xmax[2], x, w, h)
         f3() = quad(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
@@ -185,7 +184,7 @@ function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T}, x::AbstractVe
 end
 
 function quad(f::Function, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T)::T where {T<:Real,S<:Real}
+    w::AbstractVector{T}, h::T) where {T<:Real,S<:Real}
     n = length(xmin)
     return quad(f, SVector{n,T}(xmin), SVector{n,T}(xmax), x, w, h)
 end
