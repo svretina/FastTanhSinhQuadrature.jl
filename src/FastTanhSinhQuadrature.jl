@@ -77,33 +77,33 @@ end
 
 # [-1,1] by default 1D
 function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T},
-    h::T, ncalls::MVector{1,<:Int}) where {T<:Real}
+    h::T) where {T<:Real}
     s = weight(zero(T)) * f(zero(T))
-    ncalls[1] += 1
+    # ncalls[1] += 1
     for i in 1:length(x)
         s += w[i] * (f(-x[i]) + f(x[i]))
-        ncalls[1] += 2
+        # ncalls[1] += 2
     end
     return h * s
 end
 
 # [a,b] 1D
 function integrate(f::Function, xmin::T, xmax::T, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T, ncalls::MVector{1,<:Int}) where {T<:Real}
+    w::AbstractVector{T}, h::T) where {T<:Real}
     Δx = (xmax - xmin) / 2
     x₀ = (xmax + xmin) / 2
     s = weight(zero(T)) * f(x₀)
-    ncalls[1] += 1
+    #ncalls[1] += 1
     for i in 1:length(x)
         xp = x₀ + Δx * x[i]
         xm = x₀ - Δx * x[i]
         if xm > xmin
             s += w[i] * f(xm)
-            ncalls[1] += 1
+            #ncalls[1] += 1
         end
         if xp < xmax
             s += w[i] * f(xp)
-            ncalls[1] += 1
+            # ncalls[1] += 1
         end
     end
     return Δx * h * s
@@ -111,10 +111,10 @@ end
 
 ## 2D
 function integrate(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T, ncalls::MVector{1,<:Int}) where {T<:Real}
+    w::AbstractVector{T}, h::T) where {T<:Real}
     function f1(x1::T) where {T<:Real}
         g1(y::T) where {T} = f(x1, y)
-        integrate(g1, xmin[2], xmax[2], x, w, h, ncalls)
+        integrate(g1, xmin[2], xmax[2], x, w, h)
         return res, nc
     end
     g2(x1::T) where {T} = f1(x1)
@@ -124,10 +124,10 @@ end
 
 ## 3D
 function integrate(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
-    x::AbstractVector{T}, w::AbstractVector{T}, h::T, ncalls::MVector{1,<:Int}) where {T<:Real}
-    f1(x1::T, y1::T) where {T<:Real} = integrate(z -> f(x1, y1, z), xmin[3], xmax[3], x, w, h, ncalls)
-    f2(x1::T) where {T<:Real} = integrate(y -> f1(x1, y), xmin[2], xmax[2], x, w, h, ncalls)
-    return integrate(x1 -> f2(x1), xmin[1], xmax[1], x, w, h, ncalls)
+    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
+    f1(x1::T, y1::T) where {T<:Real} = integrate(z -> f(x1, y1, z), xmin[3], xmax[3], x, w, h)
+    f2(x1::T) where {T<:Real} = integrate(y -> f1(x1, y), xmin[2], xmax[2], x, w, h)
+    return integrate(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
 end
 
 # convenience function to convert AbsrtactVectors to SVectors
@@ -156,15 +156,15 @@ function quad(f::Function, xmin::T, xmax::T, x::AbstractVector{T}, w::AbstractVe
         return zero(T)
     end
 
-    ncalls = @MVector [0]
+    #ncalls = @MVector [0]
     if xmin > xmax
-        return -integrate(f, xmax, xmin, x, w, h, ncalls), ncalls[1]
+        return -integrate(f, xmax, xmin, x, w, h)#, ncalls[1]
     end
 
     if xmin == -one(T) && xmax == one(T)
-        return integrate(f, x, w, h, ncalls), ncalls[1]
+        return integrate(f, x, w, h)#, ncalls[1]
     else
-        return integrate(f, xmin, xmax, x, w, h, ncalls), ncalls[1]
+        return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
     end
 end
 
@@ -173,11 +173,11 @@ function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVe
     if any(xmin .== xmax)
         return zero(T)
     end
-    ncalls = @MVector [0]
+    #ncalls = @MVector [0]
     if (xmin[1] == -1) && (xmin[2] == -1) && (xmax[1] == 1) && (xmax[2] == -1)
-        return _integrate(f, 2, x, w, h, ncalls), ncalls[1]
+        return _integrate(f, 2, x, w, h)#, ncalls[1]
     else
-        return integrate(f, xmin, xmax, x, w, h, ncalls), ncalls[1]
+        return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
     end
 end
 
@@ -186,11 +186,11 @@ function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T}, x::AbstractVe
     if any(xmin .== xmax)
         return zero(T)
     end
-    ncalls = @MVector [0]
+    #ncalls = @MVector [0]
     if (xmin[1] == -1) && (xmin[2] == -1) && (xmin[3] == -1) && (xmax[1] == 1) && (xmax[2] == -1) && (xmax[3] == -1)
-        return _integrate(f, 3, x, w, h, ncalls), ncalls[1]
+        return _integrate(f, 3, x, w, h)#, ncalls[1]
     else
-        return integrate(f, xmin, xmax, x, w, h, ncalls), ncalls[1]
+        return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
     end
 end
 
