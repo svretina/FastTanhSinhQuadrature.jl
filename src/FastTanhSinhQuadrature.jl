@@ -163,7 +163,7 @@ function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVe
         return zero(T)
     end
 
-    if xmin == -SVector{2,T}(ones(T, 2)) && xmax == SVector{2,T}(ones(T, 2))
+    if xmin == [-1, -1] && xmax == [1, 1]
         return _integrate(f, 2, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
@@ -176,7 +176,7 @@ function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T}, x::AbstractVe
         return zero(T)
     end
 
-    if xmin == -SVector{3,T}(ones(T, 3)) && xmax == SVector{3,T}(ones(T, 3))
+    if xmin == [-1, -1, -1] && xmax == [1, 1, 1]
         return _integrate(f, 3, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
