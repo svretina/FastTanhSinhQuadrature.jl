@@ -104,18 +104,31 @@ end
 ## 2D
 function integrate(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVector{T},
     w::AbstractVector{T}, h::T)::T where {T<:Real}
-    f2(x1) = integrate(y -> f(x1, y), xmin[2], xmax[2], x, w, h)
-    f3() = integrate(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
+    f2(x1) = quad(y -> f(x1, y), x, w, h)
+    f3() = quad(x1 -> f2(x1), x, w, h)
+    return f3()
+end
+
+function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T}, h::T)::T where {T<:Real}
+    f2(x1) = quad(y -> f(x1, y), xmin[2], xmax[2], x, w, h)
+    f3() = quad(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
     return f3()
 end
 
 ## 3D
+function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T}, h::T)::T where {T<:Real}
+    f1(x1, y1) = quad(z -> f(x1, y1, z), x, w, h)
+    f2(x1) = quad(y -> f1(x1, y), x, w, h)
+    f3() = quad(x1 -> f2(x1), x, w, h)
+    return f3()
+end
+
 function integrate(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
     x::AbstractVector{T},
     w::AbstractVector{T}, h::T)::T where {T<:Real}
-    f1(x1, y1) = integrate(z -> f(x1, y1, z), xmin[3], xmax[3], x, w, h)
-    f2(x1) = integrate(y -> f1(x1, y), xmin[2], xmax[2], x, w, h)
-    f3() = integrate(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
+    f1(x1, y1) = quad(z -> f(x1, y1, z), xmin[3], xmax[3], x, w, h)
+    f2(x1) = quad(y -> f1(x1, y), xmin[2], xmax[2], x, w, h)
+    f3() = quad(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
     return f3()
 end
 
@@ -145,15 +158,11 @@ end
 
 # 2D
 function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
-    if xmin == xmax
+    if any(xmin .== xmax)
         return zero(T)
     end
 
-    if xmin > xmax
-        return -integrate(f, xmax, xmin, x, w, h)
-    end
-
-    if xmin == -one(T) && xmax == one(T)
+    if xmin == -SVector{2,T}(ones(T, 2)) && xmax == SVector{2,T}(ones(T, 2))
         return integrate(f, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
@@ -162,15 +171,11 @@ end
 
 # 3D
 function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T}, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
-    if xmin == xmax
+    if any(xmin .== xmax)
         return zero(T)
     end
 
-    if xmin > xmax
-        return -integrate(f, xmax, xmin, x, w, h)
-    end
-
-    if xmin == -one(T) && xmax == one(T)
+    if xmin == -SVector{3,T}(ones(T, 3)) && xmax == SVector{3,T}(ones(T, 3))
         return integrate(f, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
