@@ -58,7 +58,7 @@ function tanhsinh!(::Type{T}, x::AbstractVector{T}, w::AbstractVector{T},
 end
 
 
-function integrate(::Type{T}, f::Function, n::Int)::T where {T<:Real}
+function integrate(::Type{T}, f::Function, n::Int) where {T<:Real}
     x, w, h = tanhsinh(T, n)
     s = weight(zero(T)) * f(zero(T))
     for i in 1:length(x)
@@ -67,7 +67,7 @@ function integrate(::Type{T}, f::Function, n::Int)::T where {T<:Real}
     return h * s
 end
 
-function integrate(f::Function, n::Int)::Float64
+function integrate(f::Function, n::Int)
     x, w, h = tanhsinh(n)
     s = weight(zero(Float64)) * f(zero(Float64))
     for i in 1:length(x)
@@ -87,8 +87,8 @@ function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T},
 end
 
 # [a,b] 1D
-function integrate(f::Function, xmin::T, xmax::T, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T)::T where {T}
+function integrate(f::S, xmin::T, xmax::T, x::AbstractVector{T},
+    w::AbstractVector{T}, h::T) where {T<:Real,S}
     Δx = (xmax - xmin) / 2
     x₀ = (xmax + xmin) / 2
     s = weight(zero(T)) * f(x₀)
@@ -103,21 +103,23 @@ end
 
 ## 2D
 function integrate(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T)::T where {T<:Real}
-    f2(x1) = quad(y -> f(x1, y), x, w, h)
-    f3() = quad(x1 -> f2(x1), x, w, h)
-    return f3()
+    w::AbstractVector{T}, h::T) where {T<:Real}
+    function f1(x1::T) where {T<:Real}
+        g1(y::T) where {T} = f(x1, y)
+        integrate(g1, xmin[2], xmax[2], x, w, h)
+    end
+    g2(x1::T) where {T} = f1(x1)
+    res = integrate(g2, xmin[1], xmax[1], x, w, h)
+    return res
 end
 
 ## 3D
-
 function integrate(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
     x::AbstractVector{T},
-    w::AbstractVector{T}, h::T)::T where {T<:Real}
-    f1(x1, y1) = quad(z -> f(x1, y1, z), xmin[3], xmax[3], x, w, h)
-    f2(x1) = quad(y -> f1(x1, y), xmin[2], xmax[2], x, w, h)
-    f3() = quad(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
-    return f3()
+    w::AbstractVector{T}, h::T) where {T<:Real}
+    f1(x1::T, y1::T) where {T<:Real} = integrate(z -> f(x1, y1, z), xmin[3], xmax[3], x, w, h)
+    f2(x1::T) where {T<:Real} = integrate(y -> f1(x1, y), xmin[2], xmax[2], x, w, h)
+    return integrate(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
 end
 
 # convenience function to convert AbsrtactVectors to SVectors
@@ -162,8 +164,7 @@ function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVe
     if any(xmin .== xmax)
         return zero(T)
     end
-
-    if xmin == [-1, -1] && xmax == [1, 1]
+    if (xmin[1] == -1) && (xmin[2] == -1) && (xmax[1] == 1) && (xmax[2] == -1)
         return _integrate(f, 2, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
@@ -176,15 +177,15 @@ function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T}, x::AbstractVe
         return zero(T)
     end
 
-    if xmin == [-1, -1, -1] && xmax == [1, 1, 1]
+    if (xmin[1] == -1) && (xmin[2] == -1) && (xmin[3] == -1) && (xmax[1] == 1) && (xmax[2] == -1) && (xmax[3] == -1)
         return _integrate(f, 3, x, w, h)
     else
         return integrate(f, xmin, xmax, x, w, h)
     end
 end
 
-function quad(f::Function, xmin::AbstractVector{T}, xmax::AbstractVector{T}, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T)::T where {T<:Real}
+function quad(f::Function, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
+    w::AbstractVector{T}, h::T)::T where {T<:Real,S<:Real}
     n = length(xmin)
     return quad(f, SVector{n,T}(xmin), SVector{n,T}(xmax), x, w, h)
 end
