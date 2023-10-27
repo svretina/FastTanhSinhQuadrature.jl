@@ -91,12 +91,20 @@ function integrate(f::S, xmin::T, xmax::T, x::AbstractVector{T},
     Δx = (xmax - xmin) / 2
     x₀ = (xmax + xmin) / 2
     s = weight(zero(T)) * f(x₀)
+    ncalls = 1
     for i in 1:length(x)
         xp = x₀ + Δx * x[i]
         xm = x₀ - Δx * x[i]
-        (xm > xmin) && (s += w[i] * f(xm))
-        (xp < xmax) && (s += w[i] * f(xp))
+        if xm > xmin
+            s += w[i] * f(xm)
+            ncalls += 1
+        end
+        if xp < xmax
+            s += w[i] * f(xp)
+            ncalls += 1
+        end
     end
+    @show ncalls
     return Δx * h * s
 end
 
@@ -106,6 +114,7 @@ function integrate(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::Abstr
     function f1(x1::T) where {T<:Real}
         g1(y::T) where {T} = f(x1, y)
         integrate(g1, xmin[2], xmax[2], x, w, h)
+        return res, nc
     end
     g2(x1::T) where {T} = f1(x1)
     res = integrate(g2, xmin[1], xmax[1], x, w, h)
