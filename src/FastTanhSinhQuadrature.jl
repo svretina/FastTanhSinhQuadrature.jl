@@ -196,8 +196,8 @@ function quad(f::S, xmin::SVector{3,T}, xmax::SVector{3,T},
     return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
 end
 
-function quad(f::Function, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T) where {T<:Real,S<:Real}
+function quad(f::X, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
+    w::AbstractVector{T}, h::T) where {T<:Real,S<:Real,X}
     n = length(xmin)
     return quad(f, SVector{n,T}(xmin), SVector{n,T}(xmax), x, w, h)
 end
