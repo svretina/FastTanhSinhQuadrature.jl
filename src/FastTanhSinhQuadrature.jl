@@ -173,11 +173,12 @@ function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T},
         return zero(T)
     end
     #ncalls = @MVector [0]
-    if (xmin[1] == -1) && (xmin[2] == -1) && (xmax[1] == 1) && (xmax[2] == -1)
-        return _integrate(f, 2, x, w, h)#, ncalls[1]
-    else
-        return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
-    end
+    # if (xmin[1] == -1) && (xmin[2] == -1) && (xmax[1] == 1) && (xmax[2] == -1)
+    #     return _integrate(f, 2, x, w, h)#, ncalls[1]
+    # else
+    #     return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
+    # end
+    return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
 end
 
 # 3D
@@ -187,11 +188,12 @@ function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
         return zero(T)
     end
     #ncalls = @MVector [0]
-    if (xmin[1] == -1) && (xmin[2] == -1) && (xmin[3] == -1) && (xmax[1] == 1) && (xmax[2] == -1) && (xmax[3] == -1)
-        return _integrate(f, 3, x, w, h)#, ncalls[1]
-    else
-        return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
-    end
+    # if (xmin[1] == -1) && (xmin[2] == -1) && (xmin[3] == -1) && (xmax[1] == 1) && (xmax[2] == -1) && (xmax[3] == -1)
+    #     return _integrate(f, 3, x, w, h)#, ncalls[1]
+    # else
+    #     return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
+    # end
+    return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
 end
 
 function quad(f::Function, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
