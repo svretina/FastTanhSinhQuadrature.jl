@@ -87,8 +87,8 @@ function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T},
 end
 
 # [a,b] 1D
-function integrate(f::Function, xmin::T, xmax::T, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T) where {T<:Real}
+function integrate(f::S, xmin::T, xmax::T, x::AbstractVector{T},
+    w::AbstractVector{T}, h::T) where {T<:Real,S}
     Δx = (xmax - xmin) / 2
     x₀ = (xmax + xmin) / 2
     s = weight(zero(T)) * f(x₀)
@@ -122,8 +122,8 @@ function integrate(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::Abstr
 end
 
 ## 3D
-function integrate(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
-    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
+function integrate(f::S, xmin::SVector{3,T}, xmax::SVector{3,T},
+    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
     f1(x1::T, y1::T) where {T<:Real} = integrate(z -> f(x1, y1, z), xmin[3], xmax[3], x, w, h)
     f2(x1::T) where {T<:Real} = integrate(y -> f1(x1, y), xmin[2], xmax[2], x, w, h)
     return integrate(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
