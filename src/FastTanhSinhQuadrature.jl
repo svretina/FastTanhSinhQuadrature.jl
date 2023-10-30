@@ -182,8 +182,8 @@ function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T},
 end
 
 # 3D
-function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
-    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
+function quad(f::S, xmin::SVector{3,T}, xmax::SVector{3,T},
+    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
     if (xmin[1] == xmax[1]) || (xmin[2] == xmax[2]) || (xmin[3] == xmax[3])
         return zero(T)
     end
