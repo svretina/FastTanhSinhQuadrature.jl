@@ -31,7 +31,6 @@ function tanhsinh_opt(::Type{T}, n::Int, d::Real=π / 2) where {T<:Real}
     tmax = inv_ordinate(prevfloat(one(T)))
     h = hopt(T, n, d)
     if n * h > tmax
-        @show n
         throw(BoundsError)
     end
     t = h:h:tmax
@@ -139,15 +138,14 @@ end
 
 function _integrate(f::Function, D::Int, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
     if D == 2
-        f2(x1) = quad(y -> f(x1, y), xmin[2], xmax[2], x, w, h)
-        f3() = quad(x1 -> f2(x1), xmin[1], xmax[1], x, w, h)
-        return f3()
+        f2(x1) = quad(y -> f(x1, y), x, w, h)
+        return quad(x1 -> f2(x1), x, w, h)
     elseif D == 3
         g1(x1, y1) = quad(z -> f(x1, y1, z), x, w, h)
         g2(x1) = quad(y -> g1(x1, y), x, w, h)
-        g3() = quad(x1 -> g2(x1), x, w, h)
-        return f3()
+        return quad(x1 -> g2(x1), x, w, h)
     end
+    return zero(T)
 end
 
 # helper function for generality
@@ -169,7 +167,8 @@ function quad(f::Function, xmin::T, xmax::T, x::AbstractVector{T}, w::AbstractVe
 end
 
 # 2D
-function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
+function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T},
+    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
     if any(xmin .== xmax)
         return zero(T)
     end
@@ -182,7 +181,8 @@ function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::AbstractVe
 end
 
 # 3D
-function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T}, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
+function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
+    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
     if any(xmin .== xmax)
         return zero(T)
     end
