@@ -130,8 +130,8 @@ function integrate(f::S, xmin::SVector{3,T}, xmax::SVector{3,T},
 end
 
 # convenience function to convert AbsrtactVectors to SVectors
-function integrate(f::Function, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
-    w::AbstractVector{T}, h::T) where {T<:Real,S<:Real}
+function integrate(f::X, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::AbstractVector{T},
+    w::AbstractVector{T}, h::T) where {T<:Real,S<:Real,X}
     n = length(xmin)
     return integrate(f, SVector{n,T}(xmin), SVector{n,T}(xmax), x, w, h)
 end
