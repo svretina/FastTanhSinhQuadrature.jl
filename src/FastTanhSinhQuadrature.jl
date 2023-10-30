@@ -169,7 +169,7 @@ end
 # 2D
 function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T},
     x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
-    if any(xmin .== xmax)
+    if (xmin[1] == xmax[1]) || (xmin[2] == xmax[2])
         return zero(T)
     end
     #ncalls = @MVector [0]
@@ -184,7 +184,7 @@ end
 # 3D
 function quad(f::Function, xmin::SVector{3,T}, xmax::SVector{3,T},
     x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
-    if any(xmin .== xmax)
+    if (xmin[1] == xmax[1]) || (xmin[2] == xmax[2]) || (xmin[3] == xmax[3])
         return zero(T)
     end
     #ncalls = @MVector [0]
