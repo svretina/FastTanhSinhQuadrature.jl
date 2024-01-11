@@ -4,13 +4,13 @@ using StaticArrays
 using LambertW
 using LoopVectorization
 
-export tanhsinh, integrate, quad
+export tanhsinh, integrate, integrate_avx, quad
 
 @inline function ordinate(t::T) where {T<:Real}
     return @fastmath tanh(T(π) / 2 * sinh(t))
 end
 @inline function weight(t::T) where {T<:Real}
-    tmp = cosh(T(π) / 2 * sinh(t))
+    @fastmath tmp = cosh(T(π) / 2 * sinh(t))
     return @fastmath ((T(π) / 2) * cosh(t)) / (tmp * tmp)
 end
 
@@ -24,8 +24,9 @@ function tanhsinh(::Type{T}, n::Int) where {T<:AbstractFloat}
     t = h:h:tmax
     x = ordinate.(t)
     w = weight.(t)
+    N = length(x)
     if n < 100
-        return SVector{n,T}(x), SVector{n,T}(w), h
+        return SVector{N,T}(x), SVector{N,T}(w), h
     else
         return x, w, h
     end
