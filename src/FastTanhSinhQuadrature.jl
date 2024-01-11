@@ -113,8 +113,8 @@ function integrate(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T}, x::Abstr
     w::AbstractVector{T}, h::T) where {T<:Real}
     function f1(x1::T) where {T<:Real}
         g1(y::T) where {T} = f(x1, y)
-        integrate(g1, xmin[2], xmax[2], x, w, h)
-        return res, nc
+        res = integrate(g1, xmin[2], xmax[2], x, w, h)
+        return res
     end
     g2(x1::T) where {T} = f1(x1)
     res = integrate(g2, xmin[1], xmax[1], x, w, h)
