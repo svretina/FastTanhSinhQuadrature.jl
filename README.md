@@ -10,8 +10,8 @@ This library implements the [Tanh-sinh](https://en.wikipedia.org/wiki/Tanh-sinh_
 !warning! this library is under heavy development. Use at your own risk
 
 ## Other TanhSinh quadrature libraries
-    - [TanhSinhQuadrature.jl](https://github.com/eschnett/TanhSinhQuadrature.jl), D-dimensional quadrature but slower
-    - [DoubleExponentialFormulas.jl](https://github.com/machakann/DoubleExponentialFormulas.jl) 1D quadrature
+- [TanhSinhQuadrature.jl](https://github.com/eschnett/TanhSinhQuadrature.jl), D-dimensional quadrature but slower
+- [DoubleExponentialFormulas.jl](https://github.com/machakann/DoubleExponentialFormulas.jl) 1D quadrature
     
 ## TODOs
 - add 2D and 3D tests
