@@ -59,14 +59,13 @@ function tanhsinh!(::Type{T}, x::AbstractVector{T}, w::AbstractVector{T},
 end
 
 @inline function remove_endpoints!(xmin::T, xmax::T, x, w) where {T}
-    Δx = (xmax - xmin) / 2
-    x₀ = (xmax + xmin) / 2
+    Δx = 0.5(xmax - xmin)
+    x₀ = 0.5(xmax + xmin)
     @fastmath @inbounds for i in 1:length(x)
         Δxxi = Δx * x[i]
         xp = x₀ + Δxxi
         xm = x₀ - Δxxi
         if xp ≥ xmax || xm ≤ xmin
-            @show i
             x[i] = x₀
             w[i] = zero(T)
         end
@@ -74,8 +73,8 @@ end
 end
 
 @inline function remove_left_endpoint!(xmin::T, xmax::T, x, w) where {T}
-    Δx = (xmax - xmin) / 2
-    x₀ = (xmax + xmin) / 2
+    Δx = 0.5(xmax - xmin)
+    x₀ = 0.5(xmax + xmin)
     @fastmath @inbounds for i in 1:length(x)
         Δxxi = Δx * x[i]
         xp = x₀ + Δxxi
@@ -88,8 +87,8 @@ end
 end
 
 @inline function remove_right_endpoint!(xmin::T, xmax::T, x, w) where {T}
-    Δx = (xmax - xmin) / 2
-    x₀ = (xmax + xmin) / 2
+    Δx = 0.5(xmax - xmin)
+    x₀ = 0.5(xmax + xmin)
     @fastmath @inbounds for i in 1:length(x)
         Δxxi = Δx * x[i]
         xp = x₀ + Δxxi
@@ -135,9 +134,8 @@ end
 @inline function integrate(f::S, xmin::T, xmax::T, x::AbstractVector{T},
     w::AbstractVector{T}, h::T) where {T<:Real,S}
     @fastmath @inbounds begin
-        Δx = (xmax - xmin) / 2
-        x₀ = (xmax + xmin) / 2
-        @show x₀, Δx
+        Δx = 0.5(xmax - xmin)
+        x₀ = 0.5(xmax + xmin)
         s = weight(zero(T)) * f(x₀)
         #ncalls[1] += 1
         for i in 1:length(x)
@@ -158,8 +156,8 @@ end
 ## if you want to use this with a singular function, then first run
 ## remove_endpoints! on your weights and points and then use this function
 @inline function integrate_avx(f::S, xmin::T, xmax::T, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
-    @fastmath Δx = (xmax - xmin) / 2
-    @fastmath x₀ = (xmax + xmin) / 2
+    @fastmath Δx = 0.5(xmax - xmin)
+    @fastmath x₀ = 0.5(xmax + xmin)
     @fastmath s = weight(zero(T)) * f(x₀)
     @turbo for i in 1:length(x)
         Δxxi = Δx * x[i]
@@ -205,7 +203,7 @@ function integrate(f::X, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::Ab
 end
 
 # helper function for generality
-@inline function quad(f::Function, xmin::T, xmax::T, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
+@inline function quad(f::X, xmin::T, xmax::T, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,X}
     if xmin == xmax
         return zero(T)
     end
@@ -223,8 +221,8 @@ end
 end
 
 # 2D
-@inline function quad(f::Function, xmin::SVector{2,T}, xmax::SVector{2,T},
-    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
+@inline function quad(f::X, xmin::SVector{2,T}, xmax::SVector{2,T},
+    x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,X}
     if (xmin[1] == xmax[1]) || (xmin[2] == xmax[2])
         return zero(T)
     end
