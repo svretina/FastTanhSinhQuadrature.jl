@@ -25,11 +25,7 @@ function tanhsinh(::Type{T}, n::Int) where {T<:AbstractFloat}
     x = ordinate.(t)
     w = weight.(t)
     N = length(x)
-    if n < 100
-        return SVector{N,T}(x), SVector{N,T}(w), h
-    else
-        return x, w, h
-    end
+    return x, w, h
 end
 
 tanhsinh(n::Int) = tanhsinh(Float64, n)
@@ -70,6 +66,7 @@ end
         xp = x₀ + Δxxi
         xm = x₀ - Δxxi
         if xp ≥ xmax || xm ≤ xmin
+            @show i
             x[i] = x₀
             w[i] = zero(T)
         end
@@ -123,8 +120,8 @@ function integrate(f::Function, n::Int)
 end
 
 # [-1,1] by default 1D
-function integrate(f::Function, x::AbstractVector{T}, w::AbstractVector{T},
-    h::T) where {T<:Real}
+function integrate(f::X, x::AbstractVector{T}, w::AbstractVector{T},
+    h::T) where {T<:Real,X}
     s = weight(zero(T)) * f(zero(T))
     # ncalls[1] += 1
     for i in 1:length(x)
@@ -140,24 +137,22 @@ end
     @fastmath @inbounds begin
         Δx = (xmax - xmin) / 2
         x₀ = (xmax + xmin) / 2
+        @show x₀, Δx
         s = weight(zero(T)) * f(x₀)
         #ncalls[1] += 1
         for i in 1:length(x)
             xp = x₀ + Δx * x[i]
             xm = x₀ - Δx * x[i]
-            if xm > xmin
+            if xm > xmin ## this is a problematic check if xmin>xmax
                 s += w[i] * f(xm)
-                #ncalls[1] += 1
             end
             if xp < xmax
                 s += w[i] * f(xp)
-                # ncalls[1] += 1
             end
         end
     end
     return Δx * h * s
 end
-
 
 ## carefull, this is unsafe for a function with a singularity at the endpoints
 ## if you want to use this with a singular function, then first run
@@ -173,6 +168,16 @@ end
         s += w[i] * (f(xm) + f(xp))
     end
     return @fastmath Δx * h * s
+end
+
+# [-1, 1] by default
+@inline function integrate_avx(f::S, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
+    μηδεν = zero(T)
+    @fastmath s = weight(μηδεν) * f(μηδεν)
+    @turbo for i in 1:length(x)
+        s += w[i] * (f(-x[i]) + f(x[i]))
+    end
+    return @fastmath h * s
 end
 
 ## 2D
@@ -199,18 +204,6 @@ function integrate(f::X, xmin::AbstractVector{S}, xmax::AbstractVector{S}, x::Ab
     return integrate(f, SVector{n,T}(xmin), SVector{n,T}(xmax), x, w, h)
 end
 
-function _integrate(f::Function, D::Int, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
-    if D == 2
-        f2(x1) = quad(y -> f(x1, y), x, w, h)
-        return quad(x1 -> f2(x1), x, w, h)
-    elseif D == 3
-        g1(x1, y1) = quad(z -> f(x1, y1, z), x, w, h)
-        g2(x1) = quad(y -> g1(x1, y), x, w, h)
-        return quad(x1 -> g2(x1), x, w, h)
-    end
-    return zero(T)
-end
-
 # helper function for generality
 @inline function quad(f::Function, xmin::T, xmax::T, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real}
     if xmin == xmax
@@ -235,13 +228,22 @@ end
     if (xmin[1] == xmax[1]) || (xmin[2] == xmax[2])
         return zero(T)
     end
-    #ncalls = @MVector [0]
-    # if (xmin[1] == -1) && (xmin[2] == -1) && (xmax[1] == 1) && (xmax[2] == -1)
-    #     return _integrate(f, 2, x, w, h)#, ncalls[1]
-    # else
-    #     return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
-    # end
-    return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
+    if all(xmin .< xmax)
+        return integrate(f, xmin, xmax, x, w, h)
+    else
+        sign = 1
+        @inbounds for i in 1:2
+            low[i] = xmin[i]
+            up[i] = xmax[i]
+            if xmin[i] > xmax[i]
+                sign *= -1
+                tmp = xmin[i]
+                xmin[i] = xmax[i]
+                xmax[i] = tmp
+            end
+        end
+        return sign * integrate(f, xmin, xmax, x, w, h)
+    end
 end
 
 # 3D
@@ -250,12 +252,6 @@ end
     if (xmin[1] == xmax[1]) || (xmin[2] == xmax[2]) || (xmin[3] == xmax[3])
         return zero(T)
     end
-    #ncalls = @MVector [0]
-    # if (xmin[1] == -1) && (xmin[2] == -1) && (xmin[3] == -1) && (xmax[1] == 1) && (xmax[2] == -1) && (xmax[3] == -1)
-    #     return _integrate(f, 3, x, w, h)#, ncalls[1]
-    # else
-    #     return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
-    # end
     return integrate(f, xmin, xmax, x, w, h)#, ncalls[1]
 end
 

@@ -2,6 +2,7 @@ using FastTanhSinhQuadrature
 using Test
 using DoubleFloats
 using Random
+using StaticArrays
 
 const Types = [Float32, Float64, Double64, BigFloat]
 const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
@@ -49,17 +50,42 @@ Random.seed!(0)
     f(x) = b0 + b1 * x + b2 * x^2
     g(x) = c0 + c1 * x + c2 * x^2
 
-    F = integrate(f, x, w, h)
-    G = integrate(g, x, w, h)
+    F1 = integrate(f, x, w, h)
+    F2 = integrate_avx(f, x, w, h)
+    G1 = integrate(g, x, w, h)
+    G2 = integrate_avx(g, x, w, h)
 
     afg(x) = a * f(x) + g(x)
-    @test integrate(afg, x, w, h) ≈ a * F + G
+    @test integrate(afg, x, w, h) ≈ a * F1 + G1
+    @test integrate_avx(afg, x, w, h) ≈ a * F2 + G2
 
-    d = T(rand(-9:9)) / 10
 
-    #@test integrate(f, one(T), -one(T), x, w, h) ≈ -F
+    # @test integrate(f, one(T), -one(T), x, w, h) ≈ -F1
+    @test integrate_avx(f, one(T), -one(T), x, w, h) ≈ -F2
 
-    F0 = integrate(f, -one(T), a, x, w, h)
-    F1 = integrate(f, a, one(T), x, w, h)
-    @test isapprox(F0 + F1, F, rtol=rtol[T])
+    F01 = integrate(f, -one(T), a, x, w, h)
+    F11 = integrate(f, a, one(T), x, w, h)
+    F02 = integrate_avx(f, -one(T), a, x, w, h)
+    F12 = integrate_avx(f, a, one(T), x, w, h)
+    @test isapprox(F01 + F11, F1, rtol=rtol[T])
+    @test isapprox(F02 + F12, F2, rtol=rtol[T])
+end
+
+@testset "2D polynomials for [-1, 1], T=$T" for T in Types
+    x, w, h = tanhsinh(T, 80)
+    ψ(x, y) = one(T)
+    f(x, y) = x * y
+    g(x, y) = x^2 * y^2
+
+    low = SVector{2,T}(-1.0, -1.0)
+    up = SVector{2,T}(1.0, 1.0)
+
+    Ψ = integrate(ψ, low, up, x, w, h)
+    Ψ2 = integrate(ψ, up, low, x, w, h)
+    F = integrate(f, low, up, x, w, h)
+    G = integrate(g, low, up, x, w, h)
+    @test Ψ ≈ 4one(T)
+    @test Ψ2 ≈ 4one(T)
+    @test F ≈ zero(T)
+    @test G ≈ T(4) / T(9)
 end
