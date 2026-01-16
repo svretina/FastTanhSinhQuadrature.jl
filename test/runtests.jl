@@ -72,7 +72,9 @@ Random.seed!(0)
 end
 
 @testset "2D polynomials for [-1, 1], T=$T" for T in Types
-    x, w, h = tanhsinh(T, 80)
+    # n=80 is too large for Float32
+    n = T == Float32 ? 40 : 80
+    x, w, h = tanhsinh(T, n)
     ψ(x, y) = one(T)
     f(x, y) = x * y
     g(x, y) = x^2 * y^2
@@ -88,4 +90,36 @@ end
     @test Ψ2 ≈ 4one(T)
     @test F ≈ zero(T)
     @test G ≈ T(4) / T(9)
+end
+
+@testset "Adaptive integration" begin
+    # Test function with known integral
+    f(x) = exp(x)
+    val_true = exp(1.0) - exp(0.0)
+    
+    val = adaptive_integrate(f, 0.0, 1.0, tol=1e-8)
+    @test isapprox(val, val_true, atol=1e-8)
+    
+    # Test with higher precision if available
+    if Double64 in Types
+        val_d = adaptive_integrate(Double64, f, 0.0, 1.0, tol=1e-15)
+        @test isapprox(val_d, val_true, atol=1e-15)
+    end
+end
+
+@testset "Logarithmic singularities T=$T" for T in Types
+    # Target value: 2*log(2) - 2 for integral from -1 to 1
+    exact = 2 * log(T(2)) - 2
+    
+    f1(x) = log(1 - x)
+    f2(x) = log(1 + x)
+    
+    # Use sufficient points for convergence on singularities
+    # n=80 is robust for high precision, 40 for Float32
+    n = T == Float32 ? 40 : 80
+    x, w, h = tanhsinh(T, n)
+    
+    # Tanh-Sinh handles endpoint singularities naturally
+    @test isapprox(integrate(f1, x, w, h), exact, rtol=rtol[T])
+    @test isapprox(integrate(f2, x, w, h), exact, rtol=rtol[T])
 end
