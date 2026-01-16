@@ -21,7 +21,7 @@ The derivative (Jacobian) of this transformation is:
 The integral then becomes:
 
 ```math
-\mathcal{I} = \int_{-\infty}^\infty g(t) dt, \quad g(t)= f(\Psi(t)) \, \Psi^\prime (t)
+\mathcal{I} = \int_{-\infty}^\infty g(t) dt, \quad g(t)= f(\Psi(t)) \Psi'(t)
 ```
 
 Since the method is specific for the $x \in (-1,1)$ domain, one must cast the desired integral to this domain by the linear substitution:
@@ -36,7 +36,12 @@ This transformation changes an arbitrary interval $[a,b]$ to $[-1,1]$, hence
 \int_a^b f(x)dx= \frac{b-a}{2}\int_{-1}^1 f(x(u))du = \frac{b-a}{2}\int_{-\infty}^\infty f(x(u(t))) w(t) dt
 ```
 
-![Figure 1: Transformation visualization (Source: arXiv:2007.15057)](figure_1.pdf)
+### Transformation Visualization
+
+The key to the Tanh-Sinh quadrature's effectiveness lies in how the transformation maps the integration points. While the discretization in the transformed $t$-domain uses equidistant notes ($t_i = ih$), the mapping $x = \tanh(\frac{\pi}{2} \sinh t)$ causes these corresponding $x_i$ nodes to cluster **double exponentially** fast near the endpoints $-1$ and $+1$ of the original domain. This dense clustering allows the quadrature to accurately resolve functions even when they have singularities at the boundaries, as the weights decay rapidly enough to suppress the singularity.
+
+![Transformation Visualization](figure_1.pdf)
+*Figure 1: Visualization of the Tanh-Sinh variable transformation. Source: [arXiv:2007.15057](https://arxiv.org/abs/2007.15057).*
 
 ## Discretization
 
@@ -49,7 +54,7 @@ We approximate the infinite integral using the trapezoidal rule with step size $
 where $t_i = ih$. Because the transformed integrand $g(t)$ decays double exponentially (like $\exp(-\frac{\pi}{2} e^{|t|})$) as $|t| \to \infty$, we can truncate the infinite sum to a finite window $[-t_n, t_n]$ with negligible error:
 
 ```math
-\mathcal{I} \approx Q_h^n = \sum_{i=-n}^{n} h \Psi\,'(t_i) \, f(\Psi(t_i))
+\mathcal{I} \approx Q_h^n = \sum_{i=-n}^{n} h \Psi'(t_i) f(\Psi(t_i))
 ```
 
 ## Error Estimation and Convergence
@@ -91,7 +96,7 @@ Both the smallest weight and abscissa value are determined by the window size $t
 For the weights to avoid the numerical underflow we need:
 
 ```math
-t_{\max}^w = \max\{ t\,|\, \Psi\,' (t) \geq F_{\min}\}
+t_{\max}^w = \max\{ t\,|\, \Psi'(t) \geq F_{\min}\}
 ```
 
 Similarly the smallest abscissa should exceed the machine epsilon / underflow limit relative to the endpoint:
