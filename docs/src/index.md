@@ -41,6 +41,4 @@ println(val)
 ```@index
 ```
 
-```@autodocs
-Modules = [FastTanhSinhQuadrature]
-```
+
