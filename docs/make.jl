@@ -13,7 +13,6 @@ makedocs(;
         canonical="https://svretina.github.io/FastTanhSinhQuadrature.jl",
         edit_link="master",
         assets=String[],
-        logo="assets/logo.svg",
     ),
     pages=[
         "Home" => "index.md",
