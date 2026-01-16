@@ -2,16 +2,15 @@
 CurrentModule = FastTanhSinhQuadrature
 ```
 
-```@contents
-```
-
-
 # FastTanhSinhQuadrature.jl
 
 ![Stable](https://img.shields.io/badge/docs-stable-blue.svg)
 ![Dev](https://img.shields.io/badge/docs-dev-blue.svg)
 ![Build Status](https://github.com/svretina/FastTanhSinhQuadrature.jl/actions/workflows/CI.yml/badge.svg?branch=master)
 ![Coverage](https://codecov.io/gh/svretina/FastTanhSinhQuadrature.jl/branch/master/graph/badge.svg)
+
+```@contents
+```
 
 **FastTanhSinhQuadrature.jl** is a high-performance Julia library for numerical integration using the [Tanh-Sinh (Double Exponential) quadrature](https://en.wikipedia.org/wiki/Tanh-sinh_quadrature) method.
 
