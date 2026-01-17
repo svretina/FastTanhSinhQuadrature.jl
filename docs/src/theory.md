@@ -40,12 +40,13 @@ This transformation changes an arbitrary interval $[a,b]$ to $[-1,1]$, hence
 
 The key to the Tanh-Sinh quadrature's effectiveness lies in how the transformation maps the integration points. While the discretization in the transformed $t$-domain uses equidistant notes ($t_i = ih$), the mapping $x = \tanh(\frac{\pi}{2} \sinh t)$ causes these corresponding $x_i$ nodes to cluster **double exponentially** fast near the endpoints $-1$ and $+1$ of the original domain. This dense clustering allows the quadrature to accurately resolve functions even when they have singularities at the boundaries, as the weights decay rapidly enough to suppress the singularity.
 
-
-<div align="center">
+```@raw html
+<div style="text-align: center;">
   <img src="figure_1.png" alt="Transformation Visualization" width="400">
   <br>
   <em>Figure 1: Visualization of the Tanh-Sinh variable transformation. Source: <a href="https://arxiv.org/abs/2007.15057">arXiv:2007.15057</a>.</em>
 </div>
+```
 
 ## Discretization
 

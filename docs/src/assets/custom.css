@@ -1,5 +1,7 @@
-/* Make the sidebar logo 1.2 times larger */
-.docs-sidebar .docs-logo > img {
-    max-width: 120% !important;
-    width: 120% !important;
+/* Make the sidebar logo 1.2 times larger and centered */
+.docs-sidebar .docs-logo>img {
+    transform: scale(1.2);
+    transform-origin: center;
+    margin: 0 auto;
+    display: block;
 }
