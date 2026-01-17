@@ -4,9 +4,9 @@ CurrentModule = FastTanhSinhQuadrature
 
 # FastTanhSinhQuadrature.jl
 
-<p align="center">
-  <img src="assets/logo.svg" alt="FastTanhSinhQuadrature Logo" width="250">
-</p>
+
+![FastTanhSinhQuadrature Logo](assets/logo.svg)
+
 
 ![Stable](https://img.shields.io/badge/docs-stable-blue.svg)
 ![Dev](https://img.shields.io/badge/docs-dev-blue.svg)
