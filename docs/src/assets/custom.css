@@ -1,0 +1,5 @@
+/* Make the sidebar logo 1.2 times larger */
+.docs-sidebar .docs-logo > img {
+    max-width: 120% !important;
+    width: 120% !important;
+}

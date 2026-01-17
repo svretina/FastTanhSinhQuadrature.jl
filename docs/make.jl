@@ -12,7 +12,7 @@ makedocs(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://svretina.github.io/FastTanhSinhQuadrature.jl",
         edit_link="master",
-        assets=String[],
+        assets=["assets/custom.css"],
     ),
     pages=[
         "Home" => "index.md",
