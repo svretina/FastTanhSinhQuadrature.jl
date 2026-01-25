@@ -14,7 +14,7 @@ CurrentModule = FastTanhSinhQuadrature
 
 It handles **singularities at endpoints** robustly, supports **arbitrary precision** arithmetic (e.g., `BigFloat`, `Double64`), and leverages **SIMD** for speed.
 
-The implementation follows the theoretical framework described in [Bailey et al. (2005)](https://ems.press/content/serial-article-files/41766?nt=1).
+The implementation follows the method introduced by [Takahasi & Mori (1973)](https://doi.org/10.2977/PRIMS/1195192451).
 
 ![Convergence of Tanh-Sinh Quadrature](assets/convergence.svg)
 

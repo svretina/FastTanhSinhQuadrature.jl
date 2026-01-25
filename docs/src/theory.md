@@ -2,12 +2,12 @@
 
 ## Reference
 
-This implementation follows the theoretical framework described in:
+The Tanh-Sinh (Double Exponential) quadrature method was introduced by:
 
-> **Tanh-Sinh Quadrature**  
-> D.H. Bailey, K. Jeyabalan, and X.S. Li  
-> *Experimental Mathematics*, Vol. 14 (2005), pp. 317–329  
-> [EMS Press Article](https://ems.press/content/serial-article-files/41766?nt=1)
+> **Double Exponential Formulas for Numerical Integration**  
+> Hidetosi Takahasi, Masatake Mori  
+> *Publ. Res. Inst. Math. Sci.* 9 (1973), no. 3, pp. 721–741  
+> DOI: [10.2977/PRIMS/1195192451](https://doi.org/10.2977/PRIMS/1195192451)
 
 ## Overview
 
