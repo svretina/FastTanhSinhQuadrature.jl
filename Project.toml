@@ -6,6 +6,7 @@ version = "1.0.0-DEV"
 [deps]
 LambertW = "984bce1d-4616-540c-a9ee-88d1112d94c9"
 LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
