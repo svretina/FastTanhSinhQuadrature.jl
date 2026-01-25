@@ -3,7 +3,6 @@ module FastTanhSinhQuadrature
 using StaticArrays
 using LambertW
 using LoopVectorization
-using Reexport
 
 export tanhsinh, quad, quad_split,
     integrate1D, integrate2D, integrate3D,
