@@ -1,7 +1,7 @@
 name = "FastTanhSinhQuadrature"
 uuid = "b650e0df-f744-4436-b963-b44034668c57"
 authors = ["Stamatis Vretinaris"]
-version = "1.0.0-DEV"
+version = "1.0.0"
 
 [deps]
 LambertW = "984bce1d-4616-540c-a9ee-88d1112d94c9"
