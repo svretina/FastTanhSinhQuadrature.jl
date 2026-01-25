@@ -17,6 +17,7 @@ makedocs(;
     pages=[
         "Home" => "index.md",
         "Theory" => "theory.md",
+        "Convergence" => "convergence.md",
         "Examples" => [
             "Basic Usage" => "examples/basics.md",
             "Advanced Usage" => "examples/advanced.md",

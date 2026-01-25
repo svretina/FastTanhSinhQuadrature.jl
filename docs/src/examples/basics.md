@@ -2,30 +2,46 @@
 
 This section provides practical examples for using `FastTanhSinhQuadrature.jl` in common scenarios.
 
-## 1. Simple 1D Integration
+## 1. Simple 1D Integration with `quad`
 
-Integrating standard mathematical functions is straightforward.
+The easiest way to integrate is using the `quad` function, which automatically adapts to your desired tolerance:
 
 ```julia
 using FastTanhSinhQuadrature
 
-# Function to integrate: f(x) = exp(-x^2)
-f(x) = exp(-x^2)
+# Integrate exp(x) from 0 to 1
+val = quad(exp, 0.0, 1.0)
+println("Integral of exp(x) on [0, 1]: $val")  # ≈ e - 1 ≈ 1.7183
 
-# Integrate over [-1, 1]
-result = integrate(f, 10) # 10 levels of recursion
-println("Integral of exp(-x^2) on [-1, 1]: $result")
+# Integrate over default domain [-1, 1]
+val = quad(x -> 3x^2)
+println("Integral of 3x^2 on [-1, 1]: $val")  # ≈ 2.0
 ```
 
-Integrating over an arbitrary interval $[a, b]$:
+## 2. Pre-computed Nodes for Maximum Performance
+
+For repeated integrations, pre-compute nodes and weights once:
 
 ```julia
-# Integrate sin(x) from 0 to pi
-result_sin = integrate(sin, 0.0, π, 10)
-println("Integral of sin(x) on [0, π]: $result_sin") # Should be 2.0
+using FastTanhSinhQuadrature
+
+# Generate nodes (x), weights (w), and step size (h)
+x, w, h = tanhsinh(Float64, 80)
+
+# Integrate multiple functions efficiently
+f1(x) = sin(x)^2
+f2(x) = cos(x)^2
+
+res1 = integrate1D(f1, 0.0, π, x, w, h)
+res2 = integrate1D(f2, 0.0, π, x, w, h)
+println("Integrals: $res1, $res2")  # Both ≈ π/2
+
+# Integration over [-1, 1] (default domain)
+val = integrate1D(exp, x, w, h)
+println("Integral of exp(x) on [-1, 1]: $val")
 ```
 
-## 2. High Precision Integration (`Double64`, `BigFloat`)
+## 3. High Precision Integration (`Double64`, `BigFloat`)
 
 One of the main strengths of Tanh-Sinh quadrature is its ability to handle high-precision arithmetic efficiently.
 
@@ -35,29 +51,30 @@ using DoubleFloats
 
 f(x) = exp(x)
 
-# Use Double64 for extended precision
-# N=12 typically gives ~32 digits of precision
-x, w, h = tanhsinh(Double64, 12)
-
-# Integrate exp(x) on [0, 1]
-val = integrate(f, 0.0, 1.0, x, w, h)
+# Use Double64 for extended precision (~32 decimal digits)
+val = quad(f, Double64(0), Double64(1); tol=1e-30)
 println("High precision result: $val")
+
+# Or with pre-computed nodes
+x, w, h = tanhsinh(Double64, 100)
+val = integrate1D(f, Double64(0), Double64(1), x, w, h)
+println("Pre-computed result: $val")
 ```
 
-## 3. Dealing with Singularities
+## 4. Dealing with Singularities
 
-Tanh-Sinh quadrature excels at handling endpoint singularities effectively because the quadrature nodes approach the endpoints exponentially fast but never reach them.
+Tanh-Sinh quadrature excels at handling endpoint singularities automatically.
 
 ### Logarithmic Singularity `log(1-x)`
-This function has a singularity at $x=1$.
+
+This function has a singularity at $x=1$:
 
 ```julia
 f_sing(x) = log(1-x)
 
-# Integrate on [-1, 1]
 # The singularity at x=1 is automatically handled
-val = integrate(f_sing, 10) 
-println("Integral of log(1-x) on [-1, 1]: $val")
+val = quad(f_sing, -1.0, 1.0)
+println("Integral of log(1-x) on [-1, 1]: $val")  # ≈ -0.6137
 ```
 
 ### Inverse Square Root `1/sqrt(x)` at `x=0`
@@ -66,17 +83,36 @@ println("Integral of log(1-x) on [-1, 1]: $val")
 # Integrate 1/sqrt(x) from 0 to 1
 f_sqrt(x) = 1.0 / sqrt(x)
 
-x, w, h = tanhsinh(Float64, 10)
-val = integrate(f_sqrt, 0.0, 1.0, x, w, h)
-println("Integral of 1/sqrt(x) on [0, 1]: $val") # Should be 2.0
+x, w, h = tanhsinh(Float64, 80)
+val = integrate1D(f_sqrt, 0.0, 1.0, x, w, h)
+println("Integral of 1/sqrt(x) on [0, 1]: $val")  # ≈ 2.0
 ```
 
-## 4. Adaptive Integration
+### Internal Singularities with `quad_split`
 
-If you require a specific tolerance rather than specifying a fixed number of points, use `adaptive_integrate`.
+For singularities inside the domain, use `quad_split`:
 
 ```julia
-# Integrate generic function to 1e-12 tolerance
-val = adaptive_integrate(x -> cos(x)^2, 0.0, 2π, tol=1e-12)
-println(val)
+# 1/sqrt(|x|) has a singularity at x=0
+f_abs(x) = 1 / sqrt(abs(x))
+
+# Split at the singularity point
+val = quad_split(f_abs, 0.0, -1.0, 1.0)
+println("Integral of 1/sqrt(|x|) on [-1, 1]: $val")  # ≈ 4.0
+```
+
+## 5. SIMD-Accelerated Integration
+
+For `Float32`/`Float64`, use the `_avx` variants for maximum speed:
+
+```julia
+x, w, h = tanhsinh(Float64, 100)
+
+# Standard integration
+val1 = integrate1D(exp, x, w, h)
+
+# SIMD-accelerated (2-3x faster)
+val2 = integrate1D_avx(exp, x, w, h)
+
+println("Standard: $val1, SIMD: $val2")
 ```

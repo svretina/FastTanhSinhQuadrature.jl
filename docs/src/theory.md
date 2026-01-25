@@ -1,5 +1,16 @@
 # Tanh-Sinh Quadrature
 
+## Reference
+
+This implementation follows the theoretical framework described in:
+
+> **Tanh-Sinh Quadrature**  
+> D.H. Bailey, K. Jeyabalan, and X.S. Li  
+> *Experimental Mathematics*, Vol. 14 (2005), pp. 317–329  
+> [EMS Press Article](https://ems.press/content/serial-article-files/41766?nt=1)
+
+## Overview
+
 The quadrature computes integrals of the form
 
 ```math
@@ -70,7 +81,7 @@ For an integrand $f(x)$ that is regular in a strip of width $d$ in the complex p
 |\mathcal{I} - Q_h^n| \approx \mathcal{O}\left(\exp\left(-\frac{\pi d N}{\ln(2 d N)}\right)\right)
 ```
 
-This rapid convergence rate is the hallmark of double exponential formulas.
+This rapid convergence rate is the hallmark of double exponential formulas. See the [Convergence](convergence.md) page for empirical results.
 
 ## Optimal Step Size and Truncation
 

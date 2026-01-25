@@ -9,8 +9,8 @@ Comparison of `FastTanhSinhQuadrature.jl` vs `FastGaussQuadrature.jl`.
 ## Results
 
 **Legend**:
-- **TS**: `FastTanhSinhQuadrature.integrate`
-- **TS SIMD**: `FastTanhSinhQuadrature.integrate_avx` (using `LoopVectorization`)
+- **TS**: `FastTanhSinhQuadrature.integrate1D`
+- **TS SIMD**: `FastTanhSinhQuadrature.integrate1D_avx` (using `LoopVectorization`)
 - **GQ**: `FastGaussQuadrature.gausslegendre`
 
 | Function | Domain | Points | TS (ns) | TS SIMD (ns) | GQ (ns) | Ratio (TS/GQ) | Ratio (TS SIMD/GQ) |
@@ -43,7 +43,15 @@ Comparison of `FastTanhSinhQuadrature.jl` vs `FastGaussQuadrature.jl`.
 ## Analysis
 
 - **Polynomials**: `FastTanhSinhQuadrature` with SIMD acceleration (`x^2`, `x^3`) is significantly faster (up to ~3-5x) than Gauss-Legendre quadrature.
-- **Singularities**: Functions like `sqrt(1-x^2)` and `log(1-x)` are handled handled very efficiently, often matching or outperforming Gaussian quadrature due to the double exponential clustering of nodes.
+- **Singularities**: Functions like `sqrt(1-x^2)` and `log(1-x)` are handled very efficiently, often matching or outperforming Gaussian quadrature due to the double exponential clustering of nodes.
 - **Runge Function**: `1/(1+25x^2)` also shows competitive performance, especially with SIMD.
 
-In summary, for smooth analytic functions, Gaussian quadrature (standard non-SIMD `integrate` vs GQ) is faster due to fewer nodes required for exactness using polynomials. However, `FastTanhSinhQuadrature`'s **SIMD implementation** often bridges or exceeds this gap, and it is the superior choice for **singular integrands**.
+In summary, for smooth analytic functions, Gaussian quadrature (standard non-SIMD `integrate1D` vs GQ) is faster due to fewer nodes required for exactness using polynomials. However, `FastTanhSinhQuadrature`'s **SIMD implementation** (`integrate1D_avx`) often bridges or exceeds this gap, and it is the superior choice for **singular integrands**.
+
+## Running Benchmarks
+
+To run the benchmarks yourself:
+
+```julia
+julia --project=benchmark -e 'include("benchmark/benchmarks.jl"); run_benchmark()'
+```
