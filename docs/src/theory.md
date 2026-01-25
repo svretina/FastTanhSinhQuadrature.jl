@@ -36,7 +36,7 @@ This transformation changes an arbitrary interval $[a,b]$ to $[-1,1]$, hence
 \int_a^b f(x)dx= \frac{b-a}{2}\int_{-1}^1 f(x(u))du = \frac{b-a}{2}\int_{-\infty}^\infty f(x(u(t))) w(t) dt
 ```
 
-### Transformation Visualization
+## Transformation Visualization
 
 The key to the Tanh-Sinh quadrature's effectiveness lies in how the transformation maps the integration points. While the discretization in the transformed $t$-domain uses equidistant notes ($t_i = ih$), the mapping $x = \tanh(\frac{\pi}{2} \sinh t)$ causes these corresponding $x_i$ nodes to cluster **double exponentially** fast near the endpoints $-1$ and $+1$ of the original domain. This dense clustering allows the quadrature to accurately resolve functions even when they have singularities at the boundaries, as the weights decay rapidly enough to suppress the singularity.
 
@@ -116,4 +116,28 @@ Since these conditions need to be satisfied simultaneously we introduce:
 t_{\max}^{xw} = \min\{ t_{\max}^x, \,t_{\max}^w \}
 ```
 
-It is crucial to ensure $h$ is chosen such that $nh \le t_{max}^{xw}$.
+It is crucial to ensure $h$ is chosen such that $nh \le t_{max}^{xw}$. These limits ensure that the quadrature points remain within the range where the function $f(x)$ can be reliably evaluated and where the Jacobian weights carry meaningful values without underflowing to zero.
+
+### Adaptive Integration Strategy
+
+To achieve a desired accuracy without manually tuning the number of points $N$, we implement an adaptive refinement strategy:
+
+1. **Grid Refinement**: Starting from a coarse step size $h_0 \approx t_{max}/2$, we halve the step size at each iteration ($h_{k+1} = h_k / 2$).
+2. **Node Reuse**: Because $h_{k+1} = h_k / 2$, all nodes from iteration $k$ are preserved in iteration $k+1$ (they correspond to the even-indexed nodes $x_{2i}^{k+1}$).
+3. **Efficiency**: At each step, we only evaluate the function at the **new** nodes (odd indices $x_{2i+1}^{k+1}$ in the refined grid). This reduces the number of expensive function calls by a factor of 2 compared to recomputing the whole sum.
+4. **Multi-Dimensional Symmetry**: we exploit the symmetry of the Tanh-Sinh weights ($w(t) = w(-t)$) and nodes ($\Psi(t) = -\Psi(-t)$). For 2D and 3D integrals, this means we only iterate over one "corner" of the domain and use reflections (4-way in 2D, 8-way in 3D) to accumulate the final sum.
+
+## Singular Integral Handling
+
+One of the primary advantages of Tanh-Sinh quadrature is its ability to handle **boundary singularities**. Because the transformation maps the endpoints to infinity and clusters points double-exponentially near them, the function is never evaluated exactly at the boundary. For functions like $\int_0^1 \log(x)dx$ or $\int_{-1}^1 (1-x^2)^{-1/2}dx$, the quadrature typically reaches high accuracy without any special treatment.
+
+### Internal Singularities and Domain Splitting
+
+If a singularity exists **inside** the integration domain (e.g., $\int_{-1}^1 |x|^{-1/2}dx$ at $x=0$), the standard Tanh-Sinh approach may fail or converge very slowly because the high-density node regions (the "exponential tails") are at the boundaries, not the interior.
+
+To handle this, we provide the `quad_split` function. It allows the user to specify the location of the internal singularity. The function then:
+1. Splits the domain into sub-regions (2 segments in 1D, 4 rectangles in 2D, or 8 boxes in 3D) where the singularity is on the **boundary** of each sub-region.
+2. Integrates each sub-region using the standard `quad` function.
+3. Sums the results.
+
+This transforms an internal singularity into several boundary singularities, which Tanh-Sinh then handles with its characteristic efficiency.

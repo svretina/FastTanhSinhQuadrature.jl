@@ -1,0 +1,4 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
+FastTanhSinhQuadrature = "b650e0df-f744-4436-b963-b44034668c57"

@@ -14,6 +14,8 @@ CurrentModule = FastTanhSinhQuadrature
 
 It handles **singularities at endpoints** robustly, supports **arbitrary precision** arithmetic (e.g., `BigFloat`, `Double64`), and leverages **SIMD** for speed.
 
+![Convergence of Tanh-Sinh Quadrature](assets/convergence.svg)
+
 ## Usage at a Glance
 
 ```julia

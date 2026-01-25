@@ -20,6 +20,11 @@ Fast and high-precision numerical integration using **Tanh-Sinh (Double Exponent
 - **Multidimensional Support**: Built-in support for **1D**, **2D**, and **3D** integration domains.
 - **Efficiency**: Pre-compute quadrature nodes and weights once and reuse them for multiple integrations to save computation time.
 - **Singularity Handling**: robust handling of functions with singularities at integration boundaries.
+- **Double Exponential Convergence**: Achieve machine precision with few points even for singular integrands.
+
+<p align="center">
+  <img src="docs/src/assets/convergence.svg" alt="Convergence Plot" width="600">
+</p>
 
 ## Installation
 
