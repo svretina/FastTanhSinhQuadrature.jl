@@ -82,7 +82,7 @@ integral2 = integrate1D(f2, 0.0, π, x, w, h)
 
 # Figures
 
-![Convergence of Tanh-Sinh Quadrature compared to other methods. The plot illustrates the rapid error decay.](docs/src/assets/convergence.svg)
+![Convergence of Tanh-Sinh Quadrature compared to other methods. The plot illustrates the rapid error decay.](convergence.svg)
 
 # Research Impact Statement
 
