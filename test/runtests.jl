@@ -157,3 +157,9 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
         @test isapprox(quad((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]), 1.0, atol=1e-12)
     end
 end
+
+# Aqua.jl quality assurance tests
+using Aqua
+@testset "Aqua.jl" begin
+    Aqua.test_all(FastTanhSinhQuadrature)
+end
