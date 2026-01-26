@@ -9,6 +9,8 @@ CurrentModule = FastTanhSinhQuadrature
 ![Dev](https://img.shields.io/badge/docs-dev-blue.svg)
 ![Build Status](https://github.com/svretina/FastTanhSinhQuadrature.jl/actions/workflows/CI.yml/badge.svg?branch=master)
 ![Coverage](https://codecov.io/gh/svretina/FastTanhSinhQuadrature.jl/branch/master/graph/badge.svg)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
 
 **FastTanhSinhQuadrature.jl** is a high-performance Julia library for numerical integration using the [Tanh-Sinh (Double Exponential) quadrature](https://en.wikipedia.org/wiki/Tanh-sinh_quadrature) method.
 
@@ -60,6 +62,3 @@ val_static = integrate1D_avx(sin, x_static, w_static, h_static)
 - [Advanced Examples](examples/advanced.md): Multidimensional integration and performance tips.
 - [Benchmarks](benchmarks.md): Performance comparison against other libraries.
 - [API Reference](api.md): Detailed function documentation.
-
-```@index
-```
