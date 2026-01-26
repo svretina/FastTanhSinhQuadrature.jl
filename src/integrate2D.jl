@@ -27,8 +27,10 @@ Calculate the 2D integral of `f` over `[low, up]` (with `low, up::SVector{2}`) u
 function integrate2D(f::S, low::SVector{2,T}, up::SVector{2,T},
     x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
     @inbounds begin
-        Δx, Δy = 0.5 .* (up .- low)
-        x₀, y₀ = 0.5 .* (up .+ low)
+        Δx = 0.5 * (up[1] - low[1])
+        Δy = 0.5 * (up[2] - low[2])
+        x₀ = 0.5 * (up[1] + low[1])
+        y₀ = 0.5 * (up[2] + low[2])
 
         w₀ = T(π) / 2
         s = w₀^2 * f(x₀, y₀)
@@ -68,8 +70,10 @@ SIMD-accelerated 2D integration over `[low, up]` Using `LoopVectorization`.
 """
 function integrate2D_avx(f::S, low::SVector{2,T}, up::SVector{2,T},
     x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
-    Δx, Δy = 0.5 .* (up .- low)
-    x₀, y₀ = 0.5 .* (up .+ low)
+    Δx = 0.5 * (up[1] - low[1])
+    Δy = 0.5 * (up[2] - low[2])
+    x₀ = 0.5 * (up[1] + low[1])
+    y₀ = 0.5 * (up[2] + low[2])
 
     w₀ = T(π) / 2
     s = w₀^2 * f(x₀, y₀)

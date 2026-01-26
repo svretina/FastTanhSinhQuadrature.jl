@@ -14,6 +14,11 @@ function integrate1D(::Type{T}, f::Function, N::Int) where {T<:Real}
     return h * s
 end
 
+"""
+    integrate1D(f::Function, N::Int)
+
+Calculate the integral of `f` over `[-1, 1]` using `N` Tanh-Sinh quadrature points in `Float64` precision.
+"""
 function integrate1D(f::Function, N::Int)
     return integrate1D(Float64, f, N)
 end
@@ -27,7 +32,7 @@ Calculate the integral of `f` over `[-1, 1]` using pre-computed nodes `x`, weigh
 function integrate1D(f::X, x::AbstractVector{T}, w::AbstractVector{T},
     h::T) where {T<:Real,X}
     s = T(π) / 2 * f(zero(T))
-    @inbounds for i in eachindex(x)
+    @inbounds for i in 1:length(x)
         s += w[i] * (f(-x[i]) + f(x[i]))
     end
     return h * s
@@ -77,7 +82,7 @@ function integrate1D_avx(f::S, low::T, up::T, x::AbstractVector{T}, w::AbstractV
     Δx = 0.5(up - low)
     x₀ = 0.5(up + low)
     s = T(π) / 2 * f(x₀)
-    @turbo for i in eachindex(x)
+    @turbo for i in 1:length(x)
         Δxxi = Δx * x[i]
         xp = x₀ + Δxxi
         xm = x₀ - Δxxi

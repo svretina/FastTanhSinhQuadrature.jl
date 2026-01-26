@@ -68,7 +68,27 @@ Find the optimal window limit `tmax` considering abscissae and weight underflow 
 end
 
 """
-    tanhsinh(::Type{T}, N::Int) where {T<:AbstractFloat}
+    tanhsinh(::Type{T}, N::Val{N}) where {T<:AbstractFloat,N}
+
+Generate Tanh-Sinh quadrature nodes `x`, weights `w`, and step size `h` for a given floating point type `T` and number of points `Val{N}`.
+Use this for approximately N<128
+"""
+function tanhsinh(::Type{T}, ::Val{N}; D::Int=1) where {T<:AbstractFloat,N}
+    if iseven(N)
+        n = N ÷ 2
+    else
+        n = (N - 1) ÷ 2
+    end
+    tm = tmax(T, D)
+    h = tm / n
+    t = range(h, tm, length=n)
+    x = ordinate.(t)
+    w = weight.(t)
+    return SVector{n,T}(x), SVector{n,T}(w), h
+end
+
+"""
+    tanhsinh(::Type{T}, N::Int; D::Int=1) where {T<:AbstractFloat}
 
 Generate Tanh-Sinh quadrature nodes `x`, weights `w`, and step size `h` for a given floating point type `T` and number of points `N`.
 """
@@ -83,13 +103,14 @@ function tanhsinh(::Type{T}, N::Int; D::Int=1) where {T<:AbstractFloat}
     t = range(h, tm, length=n)
     x = ordinate.(t)
     w = weight.(t)
-    if N <= 100
-        return SVector{n,T}(x), SVector{n,T}(w), h
-    else
-        return x, w, h
-    end
+    return x, w, h
 end
 
+"""
+    tanhsinh(N::Int)
+
+Generate Tanh-Sinh quadrature nodes `x`, weights `w`, and step size `h` for `Float64` precision and `N` points.
+"""
 tanhsinh(N::Int) = tanhsinh(Float64, N)
 
 function tanhsinh_opt(::Type{T}, N::Int, d::Real=π / 2; D::Int=1) where {T<:Real}

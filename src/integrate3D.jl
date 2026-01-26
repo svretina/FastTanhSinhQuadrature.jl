@@ -120,8 +120,12 @@ Calculate the 3D integral of `f` over `[low, up]` (with `low, up::SVector{3}`).
 function integrate3D(f::S, low::SVector{3,T}, up::SVector{3,T},
     x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
     @inbounds begin
-        Δx, Δy, Δz = 0.5 .* (up .- low)
-        x₀, y₀, z₀ = 0.5 .* (up .+ low)
+        Δx = 0.5 * (up[1] - low[1])
+        Δy = 0.5 * (up[2] - low[2])
+        Δz = 0.5 * (up[3] - low[3])
+        x₀ = 0.5 * (up[1] + low[1])
+        y₀ = 0.5 * (up[2] + low[2])
+        z₀ = 0.5 * (up[3] + low[3])
         w₀ = T(π) / 2
         w₀² = w₀^2
         w₀³ = w₀² * w₀
@@ -183,8 +187,12 @@ SIMD-accelerated 3D integral over `[low, up]`.
 function integrate3D_avx(f::S, low::SVector{3,T}, up::SVector{3,T},
     x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
     @inbounds begin
-        Δx, Δy, Δz = 0.5 .* (up .- low)
-        x₀, y₀, z₀ = 0.5 .* (up .+ low)
+        Δx = 0.5 * (up[1] - low[1])
+        Δy = 0.5 * (up[2] - low[2])
+        Δz = 0.5 * (up[3] - low[3])
+        x₀ = 0.5 * (up[1] + low[1])
+        y₀ = 0.5 * (up[2] + low[2])
+        z₀ = 0.5 * (up[3] + low[3])
         w₀ = T(π) / 2
         w₀² = w₀^2
         w₀³ = w₀² * w₀

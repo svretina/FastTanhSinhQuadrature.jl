@@ -1,5 +1,4 @@
 # High-level quad interface
-
 """
     quad(f::Function, [low, up]; tol=1e-12, max_levels=10)
 
@@ -24,15 +23,20 @@ function quad(f::Function, low::T, up::T; tol::Real=1e-12, max_levels::Int=10) w
 end
 
 # Default 1D
+"""
+    quad(f::Function; tol=1e-12, max_levels=10)
+
+Adaptive 1D integration of `f` over the default interval `[-1, 1]`.
+"""
 quad(f::Function; tol::Real=1e-12, max_levels::Int=10) = quad(f, -1.0, 1.0; tol=tol, max_levels=max_levels)
 
 # Multi-dimensional cases
 function quad(f::Function, low::AbstractVector{T}, up::AbstractVector{T}; tol::Real=1e-10, max_levels::Int=8) where {T<:Real}
     n = length(low)
     if n == 2
-        return quad(f, SVector{2,T}(low), SVector{2,T}(up); tol=tol, max_levels=max_levels)
+        return quad(f, SVector{2,T}(low[1], low[2]), SVector{2,T}(up[1], up[2]); tol=tol, max_levels=max_levels)
     elseif n == 3
-        return quad(f, SVector{3,T}(low), SVector{3,T}(up); tol=tol, max_levels=max_levels)
+        return quad(f, SVector{3,T}(low[1], low[2], low[3]), SVector{3,T}(up[1], up[2], up[3]); tol=tol, max_levels=max_levels)
     else
         error("Higher than 3D integration is not yet supported.")
     end
@@ -104,6 +108,11 @@ function quad_split(f::Function, c::T, low::T, up::T; tol::Real=1e-12, max_level
            quad(f, c, up; tol=tol / 2, max_levels=max_levels)
 end
 
+"""
+    quad_split(f::Function, c; tol=1e-12, max_levels=10)
+
+Split the default interval `[-1, 1]` at singularity `c` and integrate both sides adaptively.
+"""
 quad_split(f::Function, c::T; tol::Real=1e-12, max_levels::Int=10) where {T<:Real} = quad_split(f, c, -one(T), one(T); tol=tol, max_levels=max_levels)
 
 function quad_split(f::Function, c::SVector{2,T}, low::SVector{2,T}, up::SVector{2,T}; tol::Real=1e-10, max_levels::Int=8) where {T<:Real}

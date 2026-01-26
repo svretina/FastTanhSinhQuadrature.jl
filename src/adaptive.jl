@@ -7,8 +7,8 @@ Adaptive 1D Tanh-Sinh integration over `[a, b]`. Starts with a coarse grid (h �
 the step size at each level. Reuses function evaluations from previous levels by only computing
 new (odd-indexed) nodes. Exploits symmetry around the center of the interval.
 """
-function adaptive_integrate_1D(::Type{T}, f::S, a, b;
-    tol::Real=1e-12, max_levels::Int=10) where {T<:Real,S}
+function adaptive_integrate_1D(::Type{T}, f::Function, a, b;
+    tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
     a_T, b_T = T(a), T(b)
     Δx = 0.5 * (b_T - a_T)
     x₀ = 0.5 * (b_T + a_T)
@@ -64,8 +64,10 @@ Exploits 4-way quadrant symmetry and 2-way axis symmetry.
 """
 function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T};
     tol::Real=1e-10, max_levels::Int=8) where {T<:Real,S}
-    Δx, Δy = 0.5 .* (up .- low)
-    x₀, y₀ = 0.5 .* (up .+ low)
+    Δx = 0.5 * (up[1] - low[1])
+    Δy = 0.5 * (up[2] - low[2])
+    x₀ = 0.5 * (up[1] + low[1])
+    y₀ = 0.5 * (up[2] + low[2])
     tm = tmax(T, 2)
     h = tm / 2
     w0 = T(π) / 2
@@ -133,8 +135,12 @@ symmetry, 4-way plane symmetry, and 2-way axis symmetry to minimize function eva
 """
 function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3,T};
     tol::Real=1e-8, max_levels::Int=5) where {T<:Real,S}
-    Δx, Δy, Δz = 0.5 .* (up .- low)
-    x₀, y₀, z₀ = 0.5 .* (up .+ low)
+    Δx = 0.5 * (up[1] - low[1])
+    Δy = 0.5 * (up[2] - low[2])
+    Δz = 0.5 * (up[3] - low[3])
+    x₀ = 0.5 * (up[1] + low[1])
+    y₀ = 0.5 * (up[2] + low[2])
+    z₀ = 0.5 * (up[3] + low[3])
     tm = tmax(T, 3)
     h = tm / 2
     w₀ = T(π) / 2

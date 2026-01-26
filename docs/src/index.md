@@ -30,12 +30,16 @@ val = quad(exp, 0.0, 1.0)  # ≈ e - 1
 f(x) = 1 / sqrt(abs(x))
 val = quad_split(f, 0.0, -1.0, 1.0)  # Split at singularity
 
-# Pre-computed nodes for maximum performance
+# Pre-computed nodes
 x, w, h = tanhsinh(Float64, 80)
 val = integrate1D(sin, x, w, h)
 
 # SIMD-accelerated (2-3x faster)
 val = integrate1D_avx(sin, x, w, h)
+
+# Use Val{N} for maximum performance with small N (< 128)
+x_static, w_static, h_static = tanhsinh(Float64, Val(80))
+val_static = integrate1D_avx(sin, x_static, w_static, h_static)
 ```
 
 ## Key Features
@@ -46,6 +50,7 @@ val = integrate1D_avx(sin, x, w, h)
 - **Adaptive Integration**: `quad` and `quad_split` functions
 - **Singularity Handling**: Robust at endpoints and interior points
 - **Double Exponential Convergence**: Machine precision with few points
+- **Type Stability**: Rigorously tested with `JET.jl` for zero runtime dispatch
 
 ## Contents
 

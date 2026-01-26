@@ -7,7 +7,7 @@
 [![Build Status](https://github.com/svretina/FastTanhSinhQuadrature.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/svretina/FastTanhSinhQuadrature.jl/actions/workflows/CI.yml?query=branch%3Amaster)
 [![Coverage](https://codecov.io/gh/svretina/FastTanhSinhQuadrature.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/svretina/FastTanhSinhQuadrature.jl)
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
-
+[![](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
 
 Fast and high-precision numerical integration using **Tanh-Sinh (Double Exponential) quadrature** in Julia.
 
@@ -25,6 +25,7 @@ Fast and high-precision numerical integration using **Tanh-Sinh (Double Exponent
 - **Adaptive Integration**: Adaptive integration with `quad` and `quad_split` functions.
 - **Optimal and maximal spacing**: Optimal spacing of nodes and weights for maximum accuracy.
 - **Underflow/Overflow Handling**: Robust handling of underflow/overflow when generating nodes and weights.
+- **Type Stable**: Rigorously tested with `JET.jl` to ensure type stability and zero runtime dispatch.
 
 <p align="center">
   <img src="docs/src/assets/convergence.svg" alt="Convergence Plot" width="400">
@@ -79,6 +80,11 @@ f2(x) = cos(x)^2
 res1 = integrate1D(f1, 0.0, π, x, w, h)
 res2 = integrate1D(f2, 0.0, π, x, w, h)
 println("Integrals: $res1, $res2")  # Both ≈ π/2
+
+# Use Val{N} for maximum performance with small N (< 128)
+# This returns StaticArrays for nodes and weights, allowing for full SIMD acceleration and zero allocations on the heap.
+x_static, w_static, h_static = tanhsinh(Float64, Val(80))
+val_static = integrate1D_avx(f1, 0.0, π, x_static, w_static, h_static)
 ```
 
 ### SIMD-Accelerated Integration
@@ -136,36 +142,46 @@ println(val)  # ≈ 1.0
 
 | Function | Description |
 |----------|-------------|
-| `quad(f, a, b; tol, max_levels)` | Adaptive 1D integration over `[a, b]` |
-| `quad(f, xmin, xmax; ...)` | Adaptive 2D/3D integration (accepts `SVector` bounds) |
-| `quad_split(f, c, a, b; ...)` | Split domain at singularity `c` and integrate |
-
-### Pre-computed Integration Functions
-
 | Function | Description |
 |----------|-------------|
+| `quad(f; tol, max_levels)` | Adaptive 1D integration over `[-1, 1]` |
+| `quad(f, low, up; tol, max_levels)` | Adaptive 1D integration over `[low, up]` |
+| `quad(f, low, up; ...)` | Adaptive 2D/3D integration (accepts `SVector` bounds) |
+| `quad_split(f, c; ...)` | Split domain `[-1, 1]` at singularity `c` and integrate |
+| `quad_split(f, c, low, up; ...)` | Split domain `[low, up]` at singularity `c` and integrate |
+
+### Pre-computed Integration Functions
+| Function | Description |
+|----------|-------------|
+| `tanhsinh(N)` | Generate Float64 nodes/weights for `N` points |
 | `tanhsinh(T, N)` | Generate nodes `x`, weights `w`, step `h` for type `T` |
-| `integrate1D(f, x, w, h)` | Integrate `f` over `[-1, 1]` |
-| `integrate1D(f, a, b, x, w, h)` | Integrate `f` over `[a, b]` |
-| `integrate2D(f, xmin, xmax, x, w, h)` | 2D integration over rectangle |
-| `integrate3D(f, xmin, xmax, x, w, h)` | 3D integration over box |
+| `tanhsinh(T, Val(N))` | Generate `SVector` nodes/weights for small `N` (SIMD-ready) |
+| `integrate1D(f, N)` | Integrate `f` over `[-1, 1]` using `N` points |
+| `integrate1D(T, f, N)` | Integrate `f` over `[-1, 1]` using `N` points in type `T` |
+| `integrate1D(f, x, w, h)` | Integrate `f` over `[-1, 1]` using pre-computed nodes |
+| `integrate1D(f, low, up, x, w, h)` | Integrate `f` over `[low, up]` using pre-computed nodes |
+| `integrate2D(f, x, w, h)` | 2D integration over `[-1, 1]^2` |
+| `integrate2D(f, low, up, x, w, h)` | 2D integration over rectangle defined by `low`, `up` |
+| `integrate3D(f, x, w, h)` | 3D integration over `[-1, 1]^3` |
+| `integrate3D(f, low, up, x, w, h)` | 3D integration over box defined by `low`, `up` |
 
 ### SIMD-Accelerated Variants
 
 | Function | Description |
 |----------|-------------|
 | `integrate1D_avx(f, x, w, h)` | SIMD 1D integration over `[-1, 1]` |
-| `integrate1D_avx(f, a, b, x, w, h)` | SIMD 1D integration over `[a, b]` |
-| `integrate2D_avx(f, xmin, xmax, x, w, h)` | SIMD 2D integration |
-| `integrate3D_avx(f, x, w, h)` | SIMD 3D integration |
+| `integrate1D_avx(f, low, up, x, w, h)` | SIMD 1D integration over `[low, up]` |
+| `integrate2D_avx(f, low, up, x, w, h)` | SIMD 2D integration over rectangle |
+| `integrate3D_avx(f, x, w, h)` | SIMD 3D integration over `[-1, 1]^3` |
+| `integrate3D_avx(f, low, up, x, w, h)` | SIMD 3D integration over box |
 
 ### Adaptive Integration Functions
 
 | Function | Description |
 |----------|-------------|
 | `adaptive_integrate_1D(T, f, a, b; tol, max_levels)` | Adaptive 1D with explicit type |
-| `adaptive_integrate_2D(T, f, xmin, xmax; ...)` | Adaptive 2D integration |
-| `adaptive_integrate_3D(T, f, xmin, xmax; ...)` | Adaptive 3D integration |
+| `adaptive_integrate_2D(T, f, low, up; ...)` | Adaptive 2D integration |
+| `adaptive_integrate_3D(T, f, low, up; ...)` | Adaptive 3D integration |
 
 ---
 
