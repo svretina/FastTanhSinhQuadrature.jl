@@ -22,32 +22,65 @@ bibliography: paper.bib
 
 # Summary
 
-Numerical integration is a cornerstone of scientific computing, essential for evaluating integrals that cannot be solved analytically. The Tanh-Sinh (or Double Exponential) quadrature, originally proposed by @Takahasi1973, is a powerful technique known for its high accuracy and efficiency, particularly for integrands with endpoint singularities. `FastTanhSinhQuadrature.jl` provides a high-performance, arbitrary-precision implementation of this method in Julia. It leverages modern compiler technologies to achieve significant speedups over traditional implementations while maintaining rigorous mathematical precision.
+Numerical integration is a cornerstone of scientific computing, essential for evaluating integrals that cannot be solved analytically. The Tanh-Sinh (or Double Exponential) quadrature, originally proposed by Takahasi and Mori (@Takahasi1973), is a powerful technique known for its high accuracy and efficiency, particularly for integrands with endpoint singularities. `FastTanhSinhQuadrature.jl` provides a high-performance, arbitrary-precision implementation of this method in Julia. It leverages modern compiler technologies to achieve significant speedups over traditional implementations while maintaining rigorous mathematical precision.
 
 # Statement of Need
 
-In many fields of physics and engineering, researchers encounter integrals with singularities at the boundaries, such as those found in potential theory or quantum field calculations. Standard Gaussian quadrature rules often fail or require an excessive number of points to converge in these cases. While other integration libraries exist, they may not offer the combination of:
+In many fields of physics and engineering, researchers encounter integrals with singularities at the boundaries, such as those found in potential theory or quantum field calculations. Standard Gaussian quadrature rules often fail or require an excessive number of points to converge in these cases. While other integration libraries exist, they don't offer the combination of:
 1.  **Robustness**: Handling singularities automatically without manual coordinate transformations.
 2.  **Performance**: Utilizing SIMD (Single Instruction, Multiple Data) instructions for rapid evaluation.
 3.  **Flexibility**: Supporting arbitrary precision types (e.g., `BigFloat`) and multidimensional integration.
 
-`FastTanhSinhQuadrature.jl` addresses these needs by implementing a rigorous Tanh-Sinh scheme with an optimized "window selection" strategy and SIMD-accelerated execution paths. This makes it an ideal tool for large-scale simulations where both speed and precision are critical.
+`FastTanhSinhQuadrature.jl` addresses these needs by implementing a rigorous Tanh-Sinh scheme with an optimized "window selection" strategy enabling SIMD-accelerated execution paths. This makes it an ideal tool for large-scale simulations where both speed and precision are critical.
 
 # Mathematics
 
-The Tanh-Sinh quadrature is based on the variable transformation 
-$$x = \tanh\left(\frac{\pi}{2} \sinh(t)\right)$$
-which maps the finite interval $x \in [-1, 1]$ to the infinite interval $t \in (-\infty, \infty)$. The transformed integral becomes:
-$$ \int_{-1}^{1} f(x) dx = \int_{-\infty}^{\infty} f\left(\tanh\left(\frac{\pi}{2} \sinh(t)\right)\right) \cosh\left(\frac{\pi}{2} \sinh(t)\right) \frac{\pi}{2} \cosh(t) dt $$
-This transformation results in an integrand that decays double-exponentially as $|t| \to \infty$. Consequently, the trapezoidal rule applied to this transformed integral converges exceptionally fast, even for functions with endpoint singularities.
+Tanh-sinh quadrature is designed to compute integrals of the form:
+
+$$I = \int_{-1}^{1} f(x) \, \mathrm{d}x$$
+
+The method relies on a variable transformation $x = \Psi(t)$ that maps the finite interval $x \in (-1, 1)$ onto the entire real axis $t \in (-\infty, +\infty)$. The integral is rewritten as:
+
+$$I = \int_{-\infty}^{\infty} g(t) \, \mathrm{d}t, \quad \text{where } g(t) := f(\Psi(t))\Psi'(t)$$
+
+To approximate this integral, the trapezoidal rule is applied over the infinite domain. Given a step size $h$, the approximation is:
+
+$$I_h = h \sum_{n=-\infty}^{\infty} \Psi'(t_n) f(\Psi(t_n))$$
+
+where the evaluation points are equidistant:
+
+$$t_n := nh, \quad n = 0, \pm 1, \pm 2, \dots$$
+
+For computational implementation, the infinite sum is truncated to a finite window $[-n, n]$. This yields the quadrature formula:
+
+$$I_{h}^n = h \sum_{n=-n}^{n} \Psi'(t_n) f(\Psi(t_n))$$
+
+The Tanh-sinh quadrature specifically employs the transformation proposed by Takahasi and Mori (@Takahasi1973):
+
+$$\Psi(t) = \tanh(\lambda \sinh(t))$$
+
+which has the derivative:
+
+$$\Psi'(t) = \frac{\lambda \cosh(t)}{\cosh^2(\lambda \sinh(t))}$$
+
+where $\lambda = \pi/2$.
 
 # Software Design
 
 ## Window Selection
-A key implementation detail in Tanh-Sinh quadrature is determining the truncation of the infinite sum (the "window"). If the window is too small, accuracy is lost; if too large, numerical underflow occurs. `FastTanhSinhQuadrature.jl` adopts the methodology described by @Vanherck2020. This method dynamically calculates the optimal step size $h$ and the number of points $N$ to minimize error for a given floating-point precision, ensuring consistent accuracy across `Float64`, `BigFloat`, and other types.
+
+A critical implementation detail in Tanh-Sinh quadrature is determining the truncation limits for the infinite sum $I_h$, effectively defining the finite window $[-n, n]$ used in the approximation $I_{h}^n$. If $n$ is too small, significant contributions to the integral are discarded; if $n$ is too large, the weights $\Psi'(t_i)$ decay below machine precision, leading to unnecessary computations. 
+
+Standard practice often involves conditional checks within the quadrature loop to detect underflow and terminate the summation. However, such branching logic prevents the compiler from utilizing Single Instruction, Multiple Data (SIMD) vectorization, severely limiting performance. `FastTanhSinhQuadrature.jl` avoids this issue by adopting the methodology described by @Vanherck2020. This method pre-calculates the optimal step size $h$ and the truncation index $n$ to minimize error for a given floating-point precision. This ensures consistent accuracy across `Float64`, `BigFloat`, and other numeric types while maintaining a loop structure that is amenable to SIMD optimization.
 
 ## SIMD Optimization
+
 To maximize performance on modern CPUs, the library utilizes `LoopVectorization.jl`. The core integration loops are designed to be "SIMD-friendly," allowing the compiler to process multiple data points simultaneously. This is achieved by carefully structuring the arrays of nodes and weights to align with vector registers. Benchmarks indicate that this approach yields a 2-3x speedup compared to standard scalar implementations for common integrands.
+
+## Type Stability
+
+One of the key strengths of the Julia language is its support for generic programming. `FastTanhSinhQuadrature.jl` is designed to be fully type-stable, meaning that the Julia compiler can infer return types solely from input types.
+This design extends to the support of arbitrary numeric types. The package does not rely on hardcoded constants for `Float64`; instead, the quadrature parameters $h$ and $n$ are derived dynamically based on the machine epsilon of the number type used. Consequently, the package supports any custom datatype $T$—such as `BigFloat`, `Double64` from `DoubleFloats.jl`, or other extended-precision types, provided that the type implements standard arithmetic operations alongside `eps(T)` and `prevfloat(T)`. The `eps(T)` function is essential for determining the target error tolerance and the summation window size, while `prevfloat(T)` is utilized to safely handle integration bounds near singularities without triggering domain errors.
 
 # Usage
 
@@ -78,20 +111,16 @@ f1(t) = sin(t)^2
 f2(t) = cos(t)^2
 integral1 = integrate1D(f1, 0.0, π, x, w, h)
 integral2 = integrate1D(f2, 0.0, π, x, w, h)
+
+## For maximum performance, pre-compute nodes and weights with Val() and use '_avx' variants
+x, w, h = tanhsinh(Float64, Val(80))
+integral1 = integrate1D_avx(f1, 0.0, π, x, w, h)
+integral2 = integrate1D_avx(f2, 0.0, π, x, w, h)
 ```
 
-# Figures
-
+# Convergence
+We test the software on a range of integrands over $[-1, 1]$ and compare the results to the exact values.
 ![Convergence of Tanh-Sinh Quadrature compared to other methods. The plot illustrates the rapid error decay.](convergence.svg)
-
-# Research Impact Statement
-
-`FastTanhSinhQuadrature.jl` streamlines the workflow for researchers dealing with complex or singular integrals. It has already been adopted in high-precision physics simulations where standard quadrature methods were insufficient. By providing a reliable and fast integration engine, the library enables:
-- More accurate modeling of quantum mechanical systems.
-- Faster iteration times in numerical experiments.
-- Verification of theoretical results requiring high-precision arithmetic.
-
-The library is designed to be easily extensible and to integrate seamlessly with other Julia packages, fostering a collaborative ecosystem for numerical analysis.
 
 # Acknowledgements
 

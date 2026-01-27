@@ -142,8 +142,6 @@ println(val)  # ≈ 1.0
 
 | Function | Description |
 |----------|-------------|
-| Function | Description |
-|----------|-------------|
 | `quad(f; tol, max_levels)` | Adaptive 1D integration over `[-1, 1]` |
 | `quad(f, low, up; tol, max_levels)` | Adaptive 1D integration over `[low, up]` |
 | `quad(f, low, up; ...)` | Adaptive 2D/3D integration (accepts `SVector` bounds) |
@@ -221,7 +219,3 @@ Timings are in nanoseconds (ns).
 | log(1-x) | [-1, 1] | 500 | 4117.38 | 1978.80 | 2117.80 | 1.94 | 0.93 |
 
 *Note: The SIMD-optimized `integrate1D_avx` uses `LoopVectorization.jl` and achieves significant speedups, especially for smooth functions.*
-
----
-
-*This library was built to be a robust tool for scientific computing in Julia where precision and speed are paramount.*
