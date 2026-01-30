@@ -1,14 +1,5 @@
-name: Paper
-
-on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
+name: Draft PDF
+on: [push]
 
 jobs:
   paper:
@@ -16,14 +7,14 @@ jobs:
     name: Paper Draft
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-      - name: Build Paper
-        uses: openjournals/openjournals-action@master
+        uses: actions/checkout@v4
+      - name: Build draft PDF
+        uses: openjournals/openjournals-draft-action@master
         with:
           journal: joss
           paper-path: JOSS_paper/paper.md
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: paper
           path: JOSS_paper/paper.pdf
