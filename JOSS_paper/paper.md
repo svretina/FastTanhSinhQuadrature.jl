@@ -11,8 +11,7 @@ authors:
     orcid: 0000-0001-7575-813X
     affiliation: 1
 affiliations:
-  - name: Institute for Mathematics, Astrophysics and Particle Physics,
-    Radboud University, Heyendaalseweg 135, 6525 AJ Nijmegen, The Netherlands
+  - name: Institute for Mathematics, Astrophysics and Particle Physics, Radboud University, Heyendaalseweg 135, 6525 AJ Nijmegen, The Netherlands
     index: 1
   - name: Albert-Einstein-Institut, Max-Planck-Institut für Gravitationsphysik, Callinstraße 38, 30167 Hannover, Germany
     index: 2
@@ -26,7 +25,7 @@ Numerical integration is a cornerstone of scientific computing, essential for ev
 
 # Statement of Need
 
-In many fields of physics and engineering, researchers encounter integrals with singularities at the boundaries, such as those found in potential theory or quantum field calculations. Standard Gaussian quadrature rules often fail or require an excessive number of points to converge in these cases. While other integration libraries exist, they don't offer the combination of:
+In many fields of physics and engineering, researchers encounter integrals with singularities at the boundaries. Standard Gaussian quadrature rules often fail or require an excessive number of points to converge in these cases. While other integration libraries exist, they don't offer the combination of:
 1.  **Robustness**: Handling singularities automatically without manual coordinate transformations.
 2.  **Performance**: Utilizing SIMD (Single Instruction, Multiple Data) instructions for rapid evaluation.
 3.  **Flexibility**: Supporting arbitrary precision types (e.g., `BigFloat`) and multidimensional integration.
@@ -69,7 +68,7 @@ where $\lambda = \pi/2$.
 
 ## Window Selection
 
-A critical implementation detail in Tanh-Sinh quadrature is determining the truncation limits for the infinite sum $I_h$, effectively defining the finite window $[-n, n]$ used in the approximation $I_{h}^n$. If $n$ is too small, significant contributions to the integral are discarded; if $n$ is too large, the weights $\Psi'(t_i)$ decay below machine precision, leading to unnecessary computations. 
+A critical implementation detail in Tanh-Sinh quadrature is determining the truncation limits for the infinite sum $I_h$, effectively defining the finite window $[-n, n]$ used in the approximation $I_{h}^n$. If $n$ is too small, significant contributions to the integral are discarded; if $n$ is too large, the weights $\Psi'(t_i)$ decay below machine precision, leading to unnecessary computations.
 
 Standard practice often involves conditional checks within the quadrature loop to detect underflow and terminate the summation. However, such branching logic prevents the compiler from utilizing Single Instruction, Multiple Data (SIMD) vectorization, severely limiting performance. `FastTanhSinhQuadrature.jl` avoids this issue by adopting the methodology described by @Vanherck2020. This method pre-calculates the optimal step size $h$ and the truncation index $n$ to minimize error for a given floating-point precision. This ensures consistent accuracy across `Float64`, `BigFloat`, and other numeric types while maintaining a loop structure that is amenable to SIMD optimization.
 
@@ -80,9 +79,24 @@ To maximize performance on modern CPUs, the library utilizes `LoopVectorization.
 ## Type Stability
 
 One of the key strengths of the Julia language is its support for generic programming. `FastTanhSinhQuadrature.jl` is designed to be fully type-stable, meaning that the Julia compiler can infer return types solely from input types.
-This design extends to the support of arbitrary numeric types. The package does not rely on hardcoded constants for `Float64`; instead, the quadrature parameters $h$ and $n$ are derived dynamically based on the machine epsilon of the number type used. Consequently, the package supports any custom datatype $T$—such as `BigFloat`, `Double64` from `DoubleFloats.jl`, or other extended-precision types, provided that the type implements standard arithmetic operations alongside `eps(T)` and `prevfloat(T)`. The `eps(T)` function is essential for determining the target error tolerance and the summation window size, while `prevfloat(T)` is utilized to safely handle integration bounds near singularities without triggering domain errors.
+This design extends to the support of arbitrary numeric types. The package does not rely on hardcoded constants for `Float64`; instead, the quadrature parameters $h$ and $n$ are derived dynamically based on the machine epsilon of the number type used. Consequently, the package supports any custom data type $T$, such as `BigFloat`, `Double64` from `DoubleFloats.jl`, or other extended-precision types, provided that the type implements standard arithmetic operations alongside `eps(T)` and `prevfloat(T)`. The `eps(T)` function is essential for determining the target error tolerance and the summation window size, while `prevfloat(T)` is utilized to safely handle integration bounds near singularities without triggering domain errors.
 
 # Usage
+
+## Installation
+
+To install `FastTanhSinhQuadrature.jl`, use the Julia Package Manager. You can add it via the REPL by entering the package manager mode (press `]`) and typing:
+
+```
+pkg> add FastTanhSinhQuadrature
+```
+
+Alternatively, you can use the `Pkg` API:
+
+```julia
+using Pkg
+Pkg.add("FastTanhSinhQuadrature")
+```
 
 ## Basic Integration
 The simplest entry point is the `quad` function, which performs adaptive integration:
@@ -120,7 +134,12 @@ integral2 = integrate1D_avx(f2, 0.0, π, x, w, h)
 
 # Convergence
 We test the software on a range of integrands over $[-1, 1]$ and compare the results to the exact values.
+
 ![Convergence of Tanh-Sinh Quadrature compared to other methods. The plot illustrates the rapid error decay.](convergence.svg)
+
+# AI usage disclosure
+
+During the development of this package, the author utilized Gemini (Google) for assistance with documentation, debugging and the generation of the first draft of this paper. The author has reviewed and edited all AI-generated content to ensure accuracy and adherence to the package's coding standards.
 
 # Acknowledgements
 
