@@ -1,5 +1,11 @@
 name: Draft PDF
-on: [push]
+on:
+  push:
+    paths:
+      - 'JOSS_paper/**'
+  pull_request:
+    paths:
+      - 'JOSS_paper/**'
 
 jobs:
   paper:

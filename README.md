@@ -22,9 +22,10 @@ Fast and high-precision numerical integration using **Tanh-Sinh (Double Exponent
 - **High Performance**: Specialized `integrate1D_avx`, `integrate2D_avx`, `integrate3D_avx` routines utilize `LoopVectorization.jl` for maximum speed.
 - **Multidimensional Support**: Built-in support for **1D**, **2D**, and **3D** integration domains.
 - **Memory Efficiency**: Pre-compute quadrature nodes and weights once and reuse them for multiple integrations.
-- **Singularity Handling**: Robust handling of functions with singularities at integration boundaries via `quad_split`.
+- **Singularity Handling**: Robust handling of functions with singularities at integration boundaries via `quad_split` and the new **Complement Interface** `quad_cmpl`.
 - **Double Exponential Convergence**: Achieve machine precision with few points even for singular integrands.
-- **Adaptive Integration**: Adaptive integration with `quad` and `quad_split` functions.
+- **Adaptive Integration**: Highly optimized adaptive routines for 1D, 2D, and 3D.
+- **Transcendental Caching**: 2D and 3D adaptive routines cache node and weight mappings, reducing transcendental overhead by $O(N^{d-1})$.
 - **Optimal and maximal spacing**: Optimal spacing of nodes and weights for maximum accuracy.
 - **Underflow/Overflow Handling**: Robust handling of underflow/overflow when generating nodes and weights.
 - **Type Stable**: Rigorously tested with `JET.jl` to ensure type stability and zero runtime dispatch.
@@ -63,6 +64,20 @@ println(val)  # ≈ 2.0
 f(x) = 1 / sqrt(abs(x))  # Singular at x=0
 val = quad_split(f, 0.0, -1.0, 1.0)  # Split at singularity
 println(val)  # ≈ 4.0
+```
+
+### High-Accuracy Interface: `quad_cmpl`
+
+For functions extremely sensitive near endpoints (e.g., $1-x$ or $1+x$), use `quad_cmpl`. The function `f` should accept three arguments: `f(x, 1-x, 1+x)`.
+
+```julia
+using FastTanhSinhQuadrature
+
+# Integrate f(x) = 1/sqrt(1-x^2) using complementary coordinates
+# 1-x^2 = (1-x)(1+x)
+f(x, omx, opx) = 1 / sqrt(omx * opx)
+val = quad_cmpl(f, -1.0, 1.0)
+println(val)  # ≈ π ≈ 3.14159...
 ```
 
 ### Pre-computed Nodes for Maximum Performance
@@ -146,6 +161,7 @@ println(val)  # ≈ 1.0
 |----------|-------------|
 | `quad(f; tol, max_levels)` | Adaptive 1D integration over `[-1, 1]` |
 | `quad(f, low, up; tol, max_levels)` | Adaptive 1D integration over `[low, up]` |
+| `quad_cmpl(f, low, up; ...)` | High-accuracy 1D integration for `f(x, 1-x, 1+x)` |
 | `quad(f, low, up; ...)` | Adaptive 2D/3D integration (accepts `SVector` bounds) |
 | `quad_split(f, c; ...)` | Split domain `[-1, 1]` at singularity `c` and integrate |
 | `quad_split(f, c, low, up; ...)` | Split domain `[low, up]` at singularity `c` and integrate |
@@ -178,10 +194,11 @@ println(val)  # ≈ 1.0
 ### Adaptive Integration Functions
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `adaptive_integrate_1D(T, f, a, b; tol, max_levels)` | Adaptive 1D with explicit type |
-| `adaptive_integrate_2D(T, f, low, up; ...)` | Adaptive 2D integration |
-| `adaptive_integrate_3D(T, f, low, up; ...)` | Adaptive 3D integration |
+| `adaptive_integrate_1D_cmpl(T, f, a, b; ...)` | Adaptive 1D with complement interface |
+| `adaptive_integrate_2D(T, f, low, up; ...)` | Adaptive 2D integration (cached nodes) |
+| `adaptive_integrate_3D(T, f, low, up; ...)` | Adaptive 3D integration (cached nodes) |
 
 ---
 

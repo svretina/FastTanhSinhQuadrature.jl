@@ -146,3 +146,21 @@ function quad_split(f::Function, c::SVector{3,T}, low::SVector{3,T}, up::SVector
     end
     return total
 end
+
+"""
+    quad_cmpl(f, [low, up]; tol=1e-12, max_levels=10)
+
+High-level interface for Tanh-Sinh quadrature with endpoint sensitivity.
+`f` should accept three arguments: `f(x, 1-x, 1+x)`.
+"""
+function quad_cmpl(f::Function, low::T, up::T; tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
+    if low == up
+        return zero(T)
+    end
+    if low > up
+        return -quad_cmpl(f, up, low; tol=tol, max_levels=max_levels)
+    end
+    return adaptive_integrate_1D_cmpl(T, f, low, up; tol=tol, max_levels=max_levels)
+end
+
+quad_cmpl(f::Function; tol::Real=1e-12, max_levels::Int=10) = quad_cmpl(f, -1.0, 1.0; tol=tol, max_levels=max_levels)

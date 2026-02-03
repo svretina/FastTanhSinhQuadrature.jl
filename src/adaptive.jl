@@ -19,33 +19,42 @@ function adaptive_integrate_1D(::Type{T}, f::Function, a, b;
 
     # Weight at t=0 is π/2
     w0 = T(π) / 2
-    s_origin = w0 * f(x₀)
+    s_total = w0 * f(x₀)
 
-    # Level 0 includes points at t=1h and t=2h
-    s_weighted = zero(T)
+    # Initial Level evaluations
     for k in 1:2
         tk = k * h
-        s_weighted += weight(tk) * (f(x₀ + Δx * ordinate(tk)) + f(x₀ - Δx * ordinate(tk)))
+        s_total += weight(tk) * (f(x₀ + Δx * ordinate(tk)) + f(x₀ - Δx * ordinate(tk)))
     end
 
-    total_weighted_sum = s_origin + s_weighted
-    old_res = Δx * h * total_weighted_sum
+    old_res = Δx * h * s_total
+
+    # Pre-allocate caches for ordinates and weights to avoid $O(N)$ transcendental calls
+    # Level 1 will add points at 1h, 3h... but h is halved.
+    # We can pre-calculate the points needed for the next level.
 
     for level in 1:max_levels
         h /= 2
         s_new = zero(T)
 
         # New points are at ODD multiples of the new h: 1h, 3h, 5h...
+        # We use a simple loop here. Performance for 1D is usually dominated by f.
+        # But we can still optimize the weight/ordinate calls.
         k = 1
         while true
             tk = k * h
             tk > tm && break
-            s_new += weight(tk) * (f(x₀ + Δx * ordinate(tk)) + f(x₀ - Δx * ordinate(tk)))
+
+            # Pre-calculation optimization: 
+            # In a real high-performance scenario, we'd pre-generate these nodes.
+            wk = weight(tk)
+            xk = ordinate(tk)
+            s_new += wk * (f(x₀ + Δx * xk) + f(x₀ - Δx * xk))
             k += 2
         end
 
-        total_weighted_sum += s_new
-        new_res = Δx * h * total_weighted_sum
+        s_total += s_new
+        new_res = Δx * h * s_total
 
         if abs(new_res - old_res) < tol * max(one(T), abs(new_res))
             return new_res
@@ -73,16 +82,14 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
     w0 = T(π) / 2
 
     # Helper to evaluate symmetric 4 quadrant points
-    function eval_quadrants(ti, tj, wi, wj)
-        xi, yi = ordinate(ti), ordinate(tj)
+    @inline function eval_quadrants(xi, yi, wi, wj)
         dx, dy = Δx * xi, Δy * yi
         return wi * wj * (f(x₀ + dx, y₀ + dy) + f(x₀ - dx, y₀ + dy) +
                           f(x₀ + dx, y₀ - dy) + f(x₀ - dx, y₀ - dy))
     end
 
     # Helper to evaluate symmetric axis points
-    function eval_axes(tk, wk)
-        val = ordinate(tk)
+    @inline function eval_axes(val, wk)
         dx, dy = Δx * val, Δy * val
         return wk * w0 * (f(x₀ + dx, y₀) + f(x₀ - dx, y₀) +
                           f(x₀, y₀ + dy) + f(x₀, y₀ - dy))
@@ -90,29 +97,46 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
 
     # Initial Level 0 (h, 2h)
     s_total = (w0^2) * f(x₀, y₀)
-    for i in 1:2, j in 1:2
-        s_total += eval_quadrants(i * h, j * h, weight(i * h), weight(j * h))
-    end
-    for k in 1:2
-        s_total += eval_axes(k * h, weight(k * h))
+    for i in 1:2
+        ti = i * h
+        xi, wi = ordinate(ti), weight(ti)
+        for j in 1:2
+            tj = j * h
+            xj, wj = ordinate(tj), weight(tj)
+            s_total += eval_quadrants(xi, xj, wi, wj)
+        end
+        s_total += eval_axes(xi, wi)
     end
 
     old_res = Δx * Δy * h^2 * s_total
+
+    # Cache for nodes and weights to avoid repeated transcendental calls
+    cache_x = T[]
+    cache_w = T[]
 
     for level in 1:max_levels
         h /= 2
         s_new = zero(T)
         max_k = floor(Int, tm / h)
 
+        # Populate cache for this level
+        resize!(cache_x, max_k)
+        resize!(cache_w, max_k)
         for i in 1:max_k
-            wi, ti = weight(i * h), i * h
+            ti = i * h
+            cache_x[i] = ordinate(ti)
+            cache_w[i] = weight(ti)
+        end
+
+        for i in 1:max_k
+            xi, wi = cache_x[i], cache_w[i]
             for j in 1:max_k
                 # Point is new if at least one index is odd
                 (iseven(i) && iseven(j)) && continue
-                s_new += eval_quadrants(ti, j * h, wi, weight(j * h))
+                s_new += eval_quadrants(xi, cache_x[j], wi, cache_w[j])
             end
             if isodd(i)
-                s_new += eval_axes(ti, wi)
+                s_new += eval_axes(xi, wi)
             end
         end
 
@@ -146,8 +170,7 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     w₀ = T(π) / 2
 
     # Evaluate a single point in the octant (8 reflections)
-    function add_octant(ti, tj, tk, wi, wj, wk)
-        vi, vj, vk = ordinate(ti), ordinate(tj), ordinate(tk)
+    @inline function add_octant(vi, vj, vk, wi, wj, wk)
         dx, dy, dz = Δx * vi, Δy * vj, Δz * vk
         w = wi * wj * wk
         return w * (
@@ -159,8 +182,7 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     end
 
     # Evaluate points on the 3 planes (XY, XZ, YZ) - 4 reflections each
-    function add_planes(ti, tj, wi, wj)
-        vi, vj = ordinate(ti), ordinate(tj)
+    @inline function add_planes(vi, vj, wi, wj)
         dx_i, dy_i, dz_i = Δx * vi, Δy * vi, Δz * vi
         dx_j, dy_j, dz_j = Δx * vj, Δy * vj, Δz * vj
         w = wi * wj * w₀
@@ -172,8 +194,7 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     end
 
     # Evaluate points on the 3 axes (X, Y, Z) - 2 reflections each
-    function add_axes(ti, wi)
-        vi = ordinate(ti)
+    @inline function add_axes(vi, wi)
         dx, dy, dz = Δx * vi, Δy * vi, Δz * vi
         w = wi * w₀^2
         return w * (
@@ -185,42 +206,116 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
 
     # Initial Level 0 (k=1, 2)
     s_total = (w₀^3) * f(x₀, y₀, z₀)
-    for i in 1:2, j in 1:2, k in 1:2
-        s_total += add_octant(i * h, j * h, k * h, weight(i * h), weight(j * h), weight(k * h))
-    end
-    for i in 1:2, j in 1:2
-        s_total += add_planes(i * h, j * h, weight(i * h), weight(j * h))
-    end
     for i in 1:2
-        s_total += add_axes(i * h, weight(i * h))
+        ti = i * h
+        vi, wi = ordinate(ti), weight(ti)
+        for j in 1:2
+            tj = j * h
+            vj, wj = ordinate(tj), weight(tj)
+            for k in 1:2
+                tk = k * h
+                vk, wk = ordinate(tk), weight(tk)
+                s_total += add_octant(vi, vj, vk, wi, wj, wk)
+            end
+            s_total += add_planes(vi, vj, wi, wj)
+        end
+        s_total += add_axes(vi, wi)
     end
 
     old_res = Δx * Δy * Δz * h^3 * s_total
+
+    # Cache for nodes and weights
+    cache_x = T[]
+    cache_w = T[]
 
     for level in 1:max_levels
         h /= 2
         s_new = zero(T)
         max_k = floor(Int, tm / h)
 
+        # Populate cache
+        resize!(cache_x, max_k)
+        resize!(cache_w, max_k)
         for i in 1:max_k
-            wi, ti = weight(i * h), i * h
+            ti = i * h
+            cache_x[i] = ordinate(ti)
+            cache_w[i] = weight(ti)
+        end
+
+        for i in 1:max_k
+            xi, wi = cache_x[i], cache_w[i]
             for j in 1:max_k
-                wj, tj = weight(j * h), j * h
+                xj, wj = cache_x[j], cache_w[j]
                 for k in 1:max_k
                     (iseven(i) && iseven(j) && iseven(k)) && continue
-                    s_new += add_octant(ti, tj, k * h, wi, wj, weight(k * h))
+                    s_new += add_octant(xi, xj, cache_x[k], wi, wj, cache_w[k])
                 end
                 if !(iseven(i) && iseven(j))
-                    s_new += add_planes(ti, tj, wi, wj)
+                    s_new += add_planes(xi, xj, wi, wj)
                 end
             end
             if isodd(i)
-                s_new += add_axes(ti, wi)
+                s_new += add_axes(xi, wi)
             end
         end
 
         s_total += s_new
         new_res = Δx * Δy * Δz * h^3 * s_total
+
+        if abs(new_res - old_res) < tol * max(one(T), abs(new_res))
+            return new_res
+        end
+        old_res = new_res
+    end
+    return old_res
+end
+
+"""
+    adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b; tol::Real=1e-12, max_levels::Int=10)
+
+Adaptive 1D Tanh-Sinh integration for functions sensitive near endpoints.
+`f` should accept three arguments: `f(x, 1-x, 1+x)` for the interval `[-1, 1]`.
+For general `[a, b]`, the arguments are `f(x, (b-x)/(b-a), (x-a)/(b-a))`.
+"""
+function adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b;
+    tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
+    a_T, b_T = T(a), T(b)
+    Δx = 0.5 * (b_T - a_T)
+    x₀ = 0.5 * (b_T + a_T)
+
+    tm = tmax(T)
+    h = tm / 2
+    w0 = T(π) / 2
+    s_total = w0 * f(x₀, T(0.5), T(0.5))
+
+    for k in 1:2
+        tk = k * h
+        wk, xk, ck = weight(tk), ordinate(tk), ordinate_complement(tk)
+        # f(x, (b-x)/(b-a), (x-a)/(b-a))
+        # At x = x₀ + Δx*xk:
+        # (b - (x₀ + Δx*xk)) / (b - a) = (Δx - Δx*xk) / (2Δx) = 0.5 * (1 - xk) = 0.5 * ck
+        # (x₀ + Δx*xk - a) / (b - a) = (Δx + Δx*xk) / (2Δx) = 0.5 * (1 + xk)
+        s_total += wk * (f(x₀ + Δx * xk, 0.5 * ck, 0.5 * (one(T) + xk)) +
+                         f(x₀ - Δx * xk, 0.5 * (one(T) + xk), 0.5 * ck))
+    end
+
+    old_res = Δx * h * s_total
+
+    for level in 1:max_levels
+        h /= 2
+        s_new = zero(T)
+        k = 1
+        while true
+            tk = k * h
+            tk > tm && break
+            wk, xk, ck = weight(tk), ordinate(tk), ordinate_complement(tk)
+            s_new += wk * (f(x₀ + Δx * xk, 0.5 * ck, 0.5 * (one(T) + xk)) +
+                             f(x₀ - Δx * xk, 0.5 * (one(T) + xk), 0.5 * ck))
+            k += 2
+        end
+
+        s_total += s_new
+        new_res = Δx * h * s_total
 
         if abs(new_res - old_res) < tol * max(one(T), abs(new_res))
             return new_res

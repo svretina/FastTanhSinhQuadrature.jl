@@ -1,9 +1,11 @@
 # Core Tanh-Sinh quadrature functions: transformation, weights, and node generation
 
 @inline function ordinate(t::T) where {T<:Real}
+    # x = tanh(π/2 * sinh(t))
+    # Stability: For large t, tanh(u) -> 1 - 2exp(-2u). 
+    # Directly using tanh is fine for most cases, but we guard against rounding to 1.0.
     val = tanh(T(π) / 2 * sinh(t))
-    # Safety guard: Ensure ordinate never reaches exactly 1.0 due to rounding, 
-    # which would cause Inf in singular functions.
+
     if val >= one(T)
         return prevfloat(one(T))
     elseif val <= -one(T)
@@ -12,14 +14,28 @@
     return val
 end
 
+"""
+    ordinate_complement(t::T) where {T<:Real}
+
+Return 1 - |ordinate(t)| accurately. Useful for f(1-x).
+"""
+@inline function ordinate_complement(t::T) where {T<:Real}
+    u = (T(π) / 2) * sinh(abs(t))
+    # 1 - tanh(u) = 2 / (exp(2u) + 1)
+    # This is much more accurate than 1 - tanh(u) when tanh(u) ≈ 1.
+    return 2 / (exp(2u) + 1)
+end
+
 @inline function weight(t::T) where {T<:Real}
     arg = T(π) / 2 * sinh(t)
-    # Stability: cosh can overflow for large t, which would lead to NaN.
+    # Stability: cosh can overflow for large t.
     # If the denominator cosh^2(...) would overflow, the weight is effectively 0.
-    if abs(arg) > 700.0
+    # For Float64, cosh(710) overflows.
+    if abs(arg) > T(710.0)
         return zero(T)
     end
     tmp = cosh(arg)
+    # weight = (π/2 * cosh(t)) / cosh^2(π/2 * sinh(t))
     return ((T(π) / 2) * cosh(t)) / (tmp * tmp)
 end
 
