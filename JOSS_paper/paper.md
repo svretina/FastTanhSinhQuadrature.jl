@@ -15,6 +15,8 @@ affiliations:
     index: 1
   - name: Albert-Einstein-Institut, Max-Planck-Institut für Gravitationsphysik, Callinstraße 38, 30167 Hannover, Germany
     index: 2
+  - name: Leibniz Universität Hannover, 30167 Hannover, Germany
+    index: 3
 date: 26 January 2026
 bibliography: paper.bib
 ---
