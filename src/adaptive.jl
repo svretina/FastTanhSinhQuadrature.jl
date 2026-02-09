@@ -1,3 +1,19 @@
+# FastTanhSinhQuadrature.jl: Fast and high-precision numerical integration using Tanh-Sinh (Double Exponential) quadrature.
+# Copyright (C) 2024-2026 Stamatis Vretinaris
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 # Adaptive integration functions
 
 """
@@ -310,7 +326,7 @@ function adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b;
             tk > tm && break
             wk, xk, ck = weight(tk), ordinate(tk), ordinate_complement(tk)
             s_new += wk * (f(x₀ + Δx * xk, 0.5 * ck, 0.5 * (one(T) + xk)) +
-                             f(x₀ - Δx * xk, 0.5 * (one(T) + xk), 0.5 * ck))
+                           f(x₀ - Δx * xk, 0.5 * (one(T) + xk), 0.5 * ck))
             k += 2
         end
 
