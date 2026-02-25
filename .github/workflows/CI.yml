@@ -36,7 +36,7 @@ jobs:
             os: ubuntu-latest
             arch: x64
             allow_failure: false
-          - version: '1.13'
+          - version: '~1.13.0-0'
             os: ubuntu-latest
             arch: x64
             allow_failure: false
