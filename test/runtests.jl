@@ -41,7 +41,26 @@ function run_avx_checks(f::Function)
     end
 end
 
+@inline integral_monomial_1d(low::T, up::T, p::Int) where {T<:Real} =
+    (up^(p + 1) - low^(p + 1)) / T(p + 1)
+
+@inline integral_monomial_3d(low::SVector{3,T}, up::SVector{3,T},
+    px::Int, py::Int, pz::Int) where {T<:Real} =
+    integral_monomial_1d(low[1], up[1], px) *
+    integral_monomial_1d(low[2], up[2], py) *
+    integral_monomial_1d(low[3], up[3], pz)
+
+f2_const(x, y) = one(x)
+f2_xy(x, y) = x * y
+f2_x2y2(x, y) = x^2 * y^2
+
+f3_const(x, y, z) = one(x)
+f3_xyz(x, y, z) = x * y * z
+f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
+
 @testset "FastTanhSinhQuadrature.jl" begin
+
+    include("core.jl")
 
     @testset "Basic integration T=$T" for T in Types
         f0(x) = one(T)
@@ -110,6 +129,8 @@ end
         @test isapprox(F01 + F11, F1, rtol=rtol[T])
     end
 
+    include("families_1d.jl")
+
     @testset "2D polynomials for [-1, 1], T=$T" for T in Types
         n = T == Float32 ? 40 : 80
         x, w, h = tanhsinh(T, n)
@@ -136,6 +157,8 @@ end
         # Test quad helper 2D flip
         @test isapprox(quad(ψ, up, low), 4one(T); atol=tol_check, rtol=sqrt(eps(T)))
     end
+
+    include("families_3d.jl")
 
     @testset "Adaptive integration 1D" begin
         f(x) = exp(x)
@@ -188,17 +211,10 @@ end
         # Exact is 4
         # Relax tolerance slightly for floating point noise near singularity
         @test isapprox(quad_split(f_abs, 0.0, -1.0, 1.0), 4.0, atol=1e-7)
+        @test isapprox(quad_split(f_abs, 0.0), 4.0, atol=1e-7)
     end
 
-    @testset "Edge Cases and Safety" begin
-        # Zero range
-        @test quad(x -> x, 1.0, 1.0) == 0.0
-        # Flipped
-        @test isapprox(quad(x -> x, 1.0, 0.0), -0.5, atol=1e-12)
-
-        # 3D
-        @test isapprox(quad((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]), 1.0, atol=1e-12)
-    end
+    include("dispatch.jl")
 end
 
 # Aqua.jl quality assurance tests

@@ -161,6 +161,8 @@ function integrate3D(f::S, low::SVector{3,T}, up::SVector{3,T},
             wi = w[i]
             dx = Δx * x[i]
             xp, xm = x₀ + dx, x₀ - dx
+            dy_i = Δy * x[i]
+            yp_i, ym_i = y₀ + dy_i, y₀ - dy_i
 
             for j in eachindex(x)
                 wj = w[j]
@@ -168,11 +170,11 @@ function integrate3D(f::S, low::SVector{3,T}, up::SVector{3,T},
                 dy = Δy * x[j]
                 yp, ym = y₀ + dy, y₀ - dy
                 dz_j = Δz * x[j]
-                dx_j = Δx * x[j]
+                zp_j, zm_j = z₀ + dz_j, z₀ - dz_j
 
                 plane_sum = (f(xp, yp, z₀) + f(xm, yp, z₀) + f(xp, ym, z₀) + f(xm, ym, z₀)) +
-                            (f(xp, y₀, z₀ + dz_j) + f(xm, y₀, z₀ + dz_j) + f(xp, y₀, z₀ - dz_j) + f(xm, y₀, z₀ - dz_j)) +
-                            (f(x₀, yp, z₀ + dx_j) + f(x₀, ym, z₀ + dx_j) + f(x₀, yp, z₀ - dx_j) + f(x₀, ym, z₀ - dx_j))
+                            (f(xp, y₀, zp_j) + f(xm, y₀, zp_j) + f(xp, y₀, zm_j) + f(xm, y₀, zm_j)) +
+                            (f(x₀, yp_i, zp_j) + f(x₀, ym_i, zp_j) + f(x₀, yp_i, zm_j) + f(x₀, ym_i, zm_j))
 
                 total_sum += wiwj * w₀ * plane_sum
 
@@ -228,6 +230,8 @@ function integrate3D_avx(f::S, low::SVector{3,T}, up::SVector{3,T},
             wi = w[i]
             dx = Δx * x[i]
             xp, xm = x₀ + dx, x₀ - dx
+            dy_i = Δy * x[i]
+            yp_i, ym_i = y₀ + dy_i, y₀ - dy_i
 
             for j in eachindex(x)
                 wj = w[j]
@@ -235,11 +239,11 @@ function integrate3D_avx(f::S, low::SVector{3,T}, up::SVector{3,T},
                 dy = Δy * x[j]
                 yp, ym = y₀ + dy, y₀ - dy
                 dz_j = Δz * x[j]
-                dx_j = Δx * x[j]
+                zp_j, zm_j = z₀ + dz_j, z₀ - dz_j
 
                 plane_sum = (f(xp, yp, z₀) + f(xm, yp, z₀) + f(xp, ym, z₀) + f(xm, ym, z₀)) +
-                            (f(xp, y₀, z₀ + dz_j) + f(xm, y₀, z₀ + dz_j) + f(xp, y₀, z₀ - dz_j) + f(xm, y₀, z₀ - dz_j)) +
-                            (f(x₀, yp, z₀ + dx_j) + f(x₀, ym, z₀ + dx_j) + f(x₀, yp, z₀ - dx_j) + f(x₀, ym, z₀ - dx_j))
+                            (f(xp, y₀, zp_j) + f(xm, y₀, zp_j) + f(xp, y₀, zm_j) + f(xm, y₀, zm_j)) +
+                            (f(x₀, yp_i, zp_j) + f(x₀, ym_i, zp_j) + f(x₀, yp_i, zm_j) + f(x₀, ym_i, zm_j))
 
                 total_sum += wiwj * w₀ * plane_sum
 
