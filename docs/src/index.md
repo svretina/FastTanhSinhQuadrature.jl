@@ -34,7 +34,7 @@ val = quad_split(f, 0.0, -1.0, 1.0)  # Split at singularity
 
 # Pre-computed nodes
 x, w, h = tanhsinh(Float64, 80)
-val = integrate1D(sin, x, w, h)
+val = integrate1D(x -> sin(x)^2, 0.0, π, x, w, h)  # bounds can include π
 
 # SIMD-accelerated (2-3x faster)
 val = integrate1D_avx(sin, x, w, h)
@@ -43,6 +43,15 @@ val = integrate1D_avx(sin, x, w, h)
 x_static, w_static, h_static = tanhsinh(Float64, Val(80))
 val_static = integrate1D_avx(sin, x_static, w_static, h_static)
 ```
+
+## Choosing an API
+
+- Use `quad` when you want adaptive refinement without manually choosing `N`.
+- Use `integrate1D`/`integrate2D`/`integrate3D` with pre-computed `(x, w, h)` when reusing the same nodes across many integrals.
+- Use `_avx` variants for `Float32`/`Float64` if your integrand works with `LoopVectorization`.
+- Use `quad_split` for interior singularities and `quad_cmpl` for endpoint-sensitive formulations.
+
+Pre-computed and high-level interfaces accept mixed real bounds (`Int`, `Float64`, `π`, etc.) and convert them to the numerical type used by the quadrature nodes.
 
 ## Key Features
 

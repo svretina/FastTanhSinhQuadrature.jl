@@ -138,6 +138,20 @@ To achieve a desired accuracy without manually tuning the number of points $N$, 
 3. **Efficiency**: At each step, we only evaluate the function at the **new** nodes (odd indices $x_{2i+1}^{k+1}$ in the refined grid). This reduces the number of expensive function calls by a factor of 2 compared to recomputing the whole sum.
 4. **Multi-Dimensional Symmetry**: we exploit the symmetry of the Tanh-Sinh weights ($w(t) = w(-t)$) and nodes ($\Psi(t) = -\Psi(-t)$). For 2D and 3D integrals, this means we only iterate over one "corner" of the domain and use reflections (4-way in 2D, 8-way in 3D) to accumulate the final sum.
 
+### Implementation Notes (This Package)
+
+The implementation exposes both adaptive (`quad`) and pre-computed-node (`integrate*`) interfaces.  
+For multidimensional fixed-grid integrals on bounded domains, the 3D kernels accumulate contributions in structured groups:
+
+1. the center point,
+2. axis reflections,
+3. plane reflections,
+4. full octant reflections.
+
+This decomposition reduces redundant function evaluations while preserving exact symmetry bookkeeping.
+
+For usability, bounded pre-computed interfaces also accept mixed real bound types (`Int`, `Float64`, irrational constants like $\pi$) and convert bounds to the node type before integration.
+
 ## Singular Integral Handling
 
 One of the primary advantages of Tanh-Sinh quadrature is its ability to handle **boundary singularities**. Because the transformation maps the endpoints to infinity and clusters points double-exponentially near them, the function is never evaluated exactly at the boundary. For functions like $\int_0^1 \log(x)dx$ or $\int_{-1}^1 (1-x^2)^{-1/2}dx$, the quadrature typically reaches high accuracy without any special treatment.
