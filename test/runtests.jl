@@ -136,6 +136,17 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
         end
     end
 
+    @testset "Complement coordinates (quad_cmpl)" begin
+        f_cmpl(x, bmx, xma) = 1 / sqrt(bmx * xma)
+
+        # Default interval [-1, 1]
+        @test isapprox(quad_cmpl(f_cmpl, -1.0, 1.0; tol=1e-12), π, atol=1e-12)
+
+        # General interval [a, b]
+        a, b = -2.5, 3.25
+        @test isapprox(quad_cmpl(f_cmpl, a, b; tol=1e-12), π, atol=1e-12)
+    end
+
     @testset "Logarithmic singularities T=$T" for T in Types
         exact = 2 * log(T(2)) - 2
         f1(x) = log(1 - x)

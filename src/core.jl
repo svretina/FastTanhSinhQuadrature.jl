@@ -37,9 +37,10 @@ Return 1 - |ordinate(t)| accurately. Useful for f(1-x).
 """
 @inline function ordinate_complement(t::T) where {T<:Real}
     u = (T(π) / 2) * sinh(abs(t))
-    # 1 - tanh(u) = 2 / (exp(2u) + 1)
-    # This is much more accurate than 1 - tanh(u) when tanh(u) ≈ 1.
-    return 2 / (exp(2u) + 1)
+    # 1 - tanh(u) = 2*exp(-2u) / (1 + exp(-2u))
+    # This avoids overflow in exp(2u) while preserving endpoint accuracy.
+    z = exp(-2u)
+    return 2 * z / (one(T) + z)
 end
 
 @inline function weight(t::T) where {T<:Real}
@@ -47,7 +48,7 @@ end
     # Stability: cosh can overflow for large t.
     # If the denominator cosh^2(...) would overflow, the weight is effectively 0.
     # For Float64, cosh(710) overflows.
-    if abs(arg) > T(710.0)
+    if abs(arg) > T(700.0)
         return zero(T)
     end
     tmp = cosh(arg)
