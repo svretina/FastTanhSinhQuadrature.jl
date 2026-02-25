@@ -191,4 +191,14 @@ using Aqua
     Aqua.test_all(FastTanhSinhQuadrature)
 end
 
-include("TypeStabilityTests.jl")
+if VERSION < v"1.11.0-0"
+    @info "Skipping JET type stability tests on Julia $VERSION (enabled for Julia 1.11/1.12)."
+elseif VERSION >= v"1.13.0-0"
+    @info "Skipping JET type stability tests on Julia $VERSION (JET currently not compatible with Julia 1.13+)."
+else
+    using Pkg
+    jet_series = VERSION < v"1.12.0-0" ? "0.9" : "0.11"
+    @info "Installing JET $jet_series for Julia $VERSION and running type stability tests."
+    Pkg.add(Pkg.PackageSpec(name="JET", version=jet_series))
+    include("TypeStabilityTests.jl")
+end

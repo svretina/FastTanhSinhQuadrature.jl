@@ -38,10 +38,13 @@ func2(x, y) = x * y
 func3(x, y, z) = x * y * z
 
 @testset "Type Stability" begin
-    # Configuration
-    # target_defined_modules=true: focus analysis on this package
-    # ignored_modules=[StaticArrays]: suppress false positives from StaticArrays internal dispatch
-    config = (target_defined_modules=true,)
+    # JET 0.9 uses `target_defined_modules`, while JET 0.11 uses `target_modules`.
+    # Keep compatibility across Julia 1.11/1.12 JET lines.
+    config = if Base.pkgversion(JET) < v"0.11.0"
+        (target_defined_modules=true,)
+    else
+        (target_modules=(FastTanhSinhQuadrature,),)
+    end
 
     # Helper function to reduce boilerplate
     function check_opt(f, argtypes)
