@@ -1,7 +1,7 @@
 name = "FastTanhSinhQuadrature"
 uuid = "b650e0df-f744-4436-b963-b44034668c57"
 authors = ["Stamatis Vretinaris"]
-version = "1.0.0"
+version = "1.0.1"
 
 [deps]
 LambertW = "984bce1d-4616-540c-a9ee-88d1112d94c9"
@@ -14,7 +14,7 @@ LambertW = "1"
 LoopVectorization = "0.12"
 StaticArrays = "1"
 Test = "1"
-julia = "1.10, 1.11"
+julia = "1.9, 1.10, 1.11, 1.12"
 
 [extras]
 DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
