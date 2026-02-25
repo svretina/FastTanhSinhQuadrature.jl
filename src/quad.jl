@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # High-level quad interface
+@inline _promote_real_bounds(low::Real, up::Real) = promote(float(low), float(up))
+
 """
     quad(f::Function, [low, up]; tol=1e-12, max_levels=10)
 
@@ -27,6 +29,10 @@ and chooses the most efficient implementation.
 - Automatically converts `AbstractVector` to `SVector` for multi-dimensional integration.
 """
 function quad(f::Function, low::T, up::T; tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
+    if !(T <: AbstractFloat)
+        lowf, upf = _promote_real_bounds(low, up)
+        return quad(f, lowf, upf; tol=tol, max_levels=max_levels)
+    end
     if low == up
         return zero(T)
     end
@@ -38,6 +44,11 @@ function quad(f::Function, low::T, up::T; tol::Real=1e-12, max_levels::Int=10) w
     return adaptive_integrate_1D(T, f, low, up; tol=tol, max_levels=max_levels)
 end
 
+function quad(f::Function, low::Real, up::Real; tol::Real=1e-12, max_levels::Int=10)
+    lowf, upf = _promote_real_bounds(low, up)
+    return quad(f, lowf, upf; tol=tol, max_levels=max_levels)
+end
+
 # Default 1D
 """
     quad(f::Function; tol=1e-12, max_levels=10)
@@ -47,18 +58,34 @@ Adaptive 1D integration of `f` over the default interval `[-1, 1]`.
 quad(f::Function; tol::Real=1e-12, max_levels::Int=10) = quad(f, -1.0, 1.0; tol=tol, max_levels=max_levels)
 
 # Multi-dimensional cases
-function quad(f::Function, low::AbstractVector{T}, up::AbstractVector{T}; tol::Real=1e-10, max_levels::Int=8) where {T<:Real}
+function quad(f::Function, low::AbstractVector{<:Real}, up::AbstractVector{<:Real}; tol::Real=1e-10, max_levels::Int=8)
     n = length(low)
+    n == length(up) || throw(DimensionMismatch("low and up must have the same length"))
     if n == 2
-        return quad(f, SVector{2,T}(low[1], low[2]), SVector{2,T}(up[1], up[2]); tol=tol, max_levels=max_levels)
+        t1 = typeof(float(low[1]))
+        t2 = typeof(float(low[2]))
+        t3 = typeof(float(up[1]))
+        t4 = typeof(float(up[2]))
+        T = promote_type(t1, t2, t3, t4)
+        return quad(f, SVector{2,T}(T(low[1]), T(low[2])), SVector{2,T}(T(up[1]), T(up[2])); tol=tol, max_levels=max_levels)
     elseif n == 3
-        return quad(f, SVector{3,T}(low[1], low[2], low[3]), SVector{3,T}(up[1], up[2], up[3]); tol=tol, max_levels=max_levels)
+        t1 = typeof(float(low[1]))
+        t2 = typeof(float(low[2]))
+        t3 = typeof(float(low[3]))
+        t4 = typeof(float(up[1]))
+        t5 = typeof(float(up[2]))
+        t6 = typeof(float(up[3]))
+        T = promote_type(t1, t2, t3, t4, t5, t6)
+        return quad(f, SVector{3,T}(T(low[1]), T(low[2]), T(low[3])), SVector{3,T}(T(up[1]), T(up[2]), T(up[3])); tol=tol, max_levels=max_levels)
     else
         error("Higher than 3D integration is not yet supported.")
     end
 end
 
 function quad(f::Function, low::SVector{2,T}, up::SVector{2,T}; tol::Real=1e-10, max_levels::Int=8) where {T<:Real}
+    if !(T <: AbstractFloat)
+        return quad(f, SVector(float(low[1]), float(low[2])), SVector(float(up[1]), float(up[2])); tol=tol, max_levels=max_levels)
+    end
     if any(low .== up)
         return zero(T)
     end
@@ -84,6 +111,14 @@ function quad(f::Function, low::SVector{2,T}, up::SVector{2,T}; tol::Real=1e-10,
 end
 
 function quad(f::Function, low::SVector{3,T}, up::SVector{3,T}; tol::Real=1e-8, max_levels::Int=5) where {T<:Real}
+    if !(T <: AbstractFloat)
+        return quad(
+            f,
+            SVector(float(low[1]), float(low[2]), float(low[3])),
+            SVector(float(up[1]), float(up[2]), float(up[3]));
+            tol=tol, max_levels=max_levels
+        )
+    end
     if any(low .== up)
         return zero(T)
     end
@@ -119,9 +154,18 @@ end
 Split the integration domain at point `c` (singularity) and integrate sub-domains separately.
 """
 function quad_split(f::Function, c::T, low::T, up::T; tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
+    if !(T <: AbstractFloat)
+        cf, lowf, upf = promote(float(c), float(low), float(up))
+        return quad_split(f, cf, lowf, upf; tol=tol, max_levels=max_levels)
+    end
     # [low, c] + [c, up]
     return quad(f, low, c; tol=tol / 2, max_levels=max_levels) +
            quad(f, c, up; tol=tol / 2, max_levels=max_levels)
+end
+
+function quad_split(f::Function, c::Real, low::Real, up::Real; tol::Real=1e-12, max_levels::Int=10)
+    cf, lowf, upf = promote(float(c), float(low), float(up))
+    return quad_split(f, cf, lowf, upf; tol=tol, max_levels=max_levels)
 end
 
 """
@@ -129,9 +173,21 @@ end
 
 Split the default interval `[-1, 1]` at singularity `c` and integrate both sides adaptively.
 """
-quad_split(f::Function, c::T; tol::Real=1e-12, max_levels::Int=10) where {T<:Real} = quad_split(f, c, -one(T), one(T); tol=tol, max_levels=max_levels)
+function quad_split(f::Function, c::Real; tol::Real=1e-12, max_levels::Int=10)
+    cf = float(c)
+    return quad_split(f, cf, -one(cf), one(cf); tol=tol, max_levels=max_levels)
+end
 
 function quad_split(f::Function, c::SVector{2,T}, low::SVector{2,T}, up::SVector{2,T}; tol::Real=1e-10, max_levels::Int=8) where {T<:Real}
+    if !(T <: AbstractFloat)
+        return quad_split(
+            f,
+            SVector(float(c[1]), float(c[2])),
+            SVector(float(low[1]), float(low[2])),
+            SVector(float(up[1]), float(up[2]));
+            tol=tol, max_levels=max_levels
+        )
+    end
     # Split into 4 quadrants
     cx, cy = c[1], c[2]
     x1, x2 = low[1], up[1]
@@ -145,7 +201,33 @@ function quad_split(f::Function, c::SVector{2,T}, low::SVector{2,T}, up::SVector
     return q1 + q2 + q3 + q4
 end
 
+function quad_split(f::Function, c::SVector{2,<:Real}, low::SVector{2,<:Real}, up::SVector{2,<:Real}; tol::Real=1e-10, max_levels::Int=8)
+    t1 = typeof(float(c[1]))
+    t2 = typeof(float(c[2]))
+    t3 = typeof(float(low[1]))
+    t4 = typeof(float(low[2]))
+    t5 = typeof(float(up[1]))
+    t6 = typeof(float(up[2]))
+    T = promote_type(t1, t2, t3, t4, t5, t6)
+    return quad_split(
+        f,
+        SVector{2,T}(T(c[1]), T(c[2])),
+        SVector{2,T}(T(low[1]), T(low[2])),
+        SVector{2,T}(T(up[1]), T(up[2]));
+        tol=tol, max_levels=max_levels
+    )
+end
+
 function quad_split(f::Function, c::SVector{3,T}, low::SVector{3,T}, up::SVector{3,T}; tol::Real=1e-8, max_levels::Int=5) where {T<:Real}
+    if !(T <: AbstractFloat)
+        return quad_split(
+            f,
+            SVector(float(c[1]), float(c[2]), float(c[3])),
+            SVector(float(low[1]), float(low[2]), float(low[3])),
+            SVector(float(up[1]), float(up[2]), float(up[3]));
+            tol=tol, max_levels=max_levels
+        )
+    end
     # Split into 8 octants
     cx, cy, cz = c[1], c[2], c[3]
     x1, x2 = low[1], up[1]
@@ -163,6 +245,26 @@ function quad_split(f::Function, c::SVector{3,T}, low::SVector{3,T}, up::SVector
     return total
 end
 
+function quad_split(f::Function, c::SVector{3,<:Real}, low::SVector{3,<:Real}, up::SVector{3,<:Real}; tol::Real=1e-8, max_levels::Int=5)
+    t1 = typeof(float(c[1]))
+    t2 = typeof(float(c[2]))
+    t3 = typeof(float(c[3]))
+    t4 = typeof(float(low[1]))
+    t5 = typeof(float(low[2]))
+    t6 = typeof(float(low[3]))
+    t7 = typeof(float(up[1]))
+    t8 = typeof(float(up[2]))
+    t9 = typeof(float(up[3]))
+    T = promote_type(t1, t2, t3, t4, t5, t6, t7, t8, t9)
+    return quad_split(
+        f,
+        SVector{3,T}(T(c[1]), T(c[2]), T(c[3])),
+        SVector{3,T}(T(low[1]), T(low[2]), T(low[3])),
+        SVector{3,T}(T(up[1]), T(up[2]), T(up[3]));
+        tol=tol, max_levels=max_levels
+    )
+end
+
 """
     quad_cmpl(f, [low, up]; tol=1e-12, max_levels=10)
 
@@ -170,6 +272,10 @@ High-level interface for Tanh-Sinh quadrature with endpoint sensitivity.
 `f` should accept three arguments: `f(x, 1-x, 1+x)`.
 """
 function quad_cmpl(f::Function, low::T, up::T; tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
+    if !(T <: AbstractFloat)
+        lowf, upf = _promote_real_bounds(low, up)
+        return quad_cmpl(f, lowf, upf; tol=tol, max_levels=max_levels)
+    end
     if low == up
         return zero(T)
     end
@@ -177,6 +283,11 @@ function quad_cmpl(f::Function, low::T, up::T; tol::Real=1e-12, max_levels::Int=
         return -quad_cmpl(f, up, low; tol=tol, max_levels=max_levels)
     end
     return adaptive_integrate_1D_cmpl(T, f, low, up; tol=tol, max_levels=max_levels)
+end
+
+function quad_cmpl(f::Function, low::Real, up::Real; tol::Real=1e-12, max_levels::Int=10)
+    lowf, upf = _promote_real_bounds(low, up)
+    return quad_cmpl(f, lowf, upf; tol=tol, max_levels=max_levels)
 end
 
 quad_cmpl(f::Function; tol::Real=1e-12, max_levels::Int=10) = quad_cmpl(f, -1.0, 1.0; tol=tol, max_levels=max_levels)

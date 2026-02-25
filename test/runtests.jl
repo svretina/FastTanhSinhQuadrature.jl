@@ -172,6 +172,18 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
         # Pre-computed integration should accept irrational bounds (e.g. π)
         x, w, h = tanhsinh(Float64, 80)
         @test isapprox(integrate1D(x -> sin(x)^2, 0.0, π, x, w, h), π / 2, atol=1e-12)
+        @test isapprox(integrate1D_avx(x -> sin(x)^2, 0.0, π, x, w, h), π / 2, atol=1e-12)
+        @test isapprox(integrate2D((x, y) -> 1.0, SVector(0.0, 0.0), SVector(π, π), x, w, h), π^2, atol=1e-12)
+        @test isapprox(integrate2D_avx((x, y) -> 1.0, SVector(0.0, 0.0), SVector(π, π), x, w, h), π^2, atol=1e-12)
+        @test isapprox(integrate2D((x, y) -> 1.0, [0.0, 0.0], [π, π], x, w, h), π^2, atol=1e-12)
+        @test isapprox(integrate3D((x, y, z) -> 1.0, SVector(0.0, 0.0, 0.0), SVector(π, π, π), x, w, h), π^3, atol=1e-11)
+        @test isapprox(integrate3D_avx((x, y, z) -> 1.0, SVector(0.0, 0.0, 0.0), SVector(π, π, π), x, w, h), π^3, atol=1e-11)
+        @test isapprox(integrate3D((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [π, π, π], x, w, h), π^3, atol=1e-11)
+
+        # High-level interfaces should also accept mixed real bound types
+        @test isapprox(quad(x -> x, 0.0, π), π^2 / 2, atol=1e-12)
+        @test isapprox(quad((x, y) -> 1.0, [0.0, 0.0], [π, π]), π^2, atol=1e-11)
+        @test isapprox(quad_split(x -> 1 / sqrt(abs(x)), 0, -1, 1.0), 4.0, atol=1e-7)
 
         # 3D
         @test isapprox(quad((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]), 1.0, atol=1e-12)

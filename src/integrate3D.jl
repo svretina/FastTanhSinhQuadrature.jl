@@ -196,6 +196,39 @@ function integrate3D(f::S, low::SVector{3,T}, up::SVector{3,T},
 end
 
 """
+    integrate3D(f, low::SVector{3,<:Real}, up::SVector{3,<:Real}, x, w, h)
+
+Calculate the 3D integral of `f` over `[low, up]` using pre-computed nodes/weights.
+Bounds are converted to the node type `T` to support mixed real types such as `π`.
+"""
+function integrate3D(f::S, low::SVector{3,L}, up::SVector{3,U},
+    x::X, w::W, h::T) where {T<:Real,L<:Real,U<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    return integrate3D(
+        f,
+        SVector{3,T}(T(low[1]), T(low[2]), T(low[3])),
+        SVector{3,T}(T(up[1]), T(up[2]), T(up[3])),
+        x, w, h
+    )
+end
+
+"""
+    integrate3D(f, low::AbstractVector{<:Real}, up::AbstractVector{<:Real}, x, w, h)
+
+Convenience overload for bounds given as vectors of length 3.
+"""
+function integrate3D(f::S, low::AbstractVector{<:Real}, up::AbstractVector{<:Real},
+    x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    length(low) == 3 || throw(DimensionMismatch("low must have length 3"))
+    length(up) == 3 || throw(DimensionMismatch("up must have length 3"))
+    return integrate3D(
+        f,
+        SVector{3,T}(T(low[1]), T(low[2]), T(low[3])),
+        SVector{3,T}(T(up[1]), T(up[2]), T(up[3])),
+        x, w, h
+    )
+end
+
+"""
     integrate3D_avx(f, low, up, x, w, h)
 
 SIMD-accelerated 3D integral over `[low, up]`.
@@ -260,4 +293,36 @@ function integrate3D_avx(f::S, low::SVector{3,T}, up::SVector{3,T},
     end
 
     return (Δx * Δy * Δz * h^3) * total_sum
+end
+
+"""
+    integrate3D_avx(f, low::SVector{3,<:Real}, up::SVector{3,<:Real}, x, w, h)
+
+SIMD-accelerated 3D integration where bounds are converted to node type `T`.
+"""
+function integrate3D_avx(f::S, low::SVector{3,L}, up::SVector{3,U},
+    x::X, w::W, h::T) where {T<:Real,L<:Real,U<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    return integrate3D_avx(
+        f,
+        SVector{3,T}(T(low[1]), T(low[2]), T(low[3])),
+        SVector{3,T}(T(up[1]), T(up[2]), T(up[3])),
+        x, w, h
+    )
+end
+
+"""
+    integrate3D_avx(f, low::AbstractVector{<:Real}, up::AbstractVector{<:Real}, x, w, h)
+
+Convenience SIMD overload for bounds given as vectors of length 3.
+"""
+function integrate3D_avx(f::S, low::AbstractVector{<:Real}, up::AbstractVector{<:Real},
+    x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    length(low) == 3 || throw(DimensionMismatch("low must have length 3"))
+    length(up) == 3 || throw(DimensionMismatch("up must have length 3"))
+    return integrate3D_avx(
+        f,
+        SVector{3,T}(T(low[1]), T(low[2]), T(low[3])),
+        SVector{3,T}(T(up[1]), T(up[2]), T(up[3])),
+        x, w, h
+    )
 end
