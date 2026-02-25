@@ -43,6 +43,8 @@ import Pkg
 Pkg.add("FastTanhSinhQuadrature")
 ```
 
+Supported Julia versions: `1.9` - `1.11`.
+
 ## Quick Start
 
 ### High-Level API: `quad`
