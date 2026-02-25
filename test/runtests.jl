@@ -169,6 +169,10 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
         # Flipped
         @test isapprox(quad(x -> x, 1.0, 0.0), -0.5, atol=1e-12)
 
+        # Pre-computed integration should accept irrational bounds (e.g. π)
+        x, w, h = tanhsinh(Float64, 80)
+        @test isapprox(integrate1D(x -> sin(x)^2, 0.0, π, x, w, h), π / 2, atol=1e-12)
+
         # 3D
         @test isapprox(quad((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]), 1.0, atol=1e-12)
     end

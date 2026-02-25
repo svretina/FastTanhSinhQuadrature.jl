@@ -102,6 +102,17 @@ function integrate1D(f::S, low::T, up::T, x::X,
 end
 
 """
+    integrate1D(f, low::Real, up::Real, x, w, h)
+
+Calculate the integral of `f` over `[low, up]` using pre-computed nodes `x`, weights `w`,
+and step size `h`. Bounds are converted to the node type `T` to support inputs such as `π`.
+"""
+function integrate1D(f::S, low::Real, up::Real, x::X,
+    w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    return integrate1D(f, T(low), T(up), x, w, h)
+end
+
+"""
     integrate1D_avx(f, x, w, h)
 
 SIMD-accelerated 1D integration over `[-1, 1]` Using `LoopVectorization`. 
@@ -131,4 +142,14 @@ function integrate1D_avx(f::S, low::T, up::T, x::AbstractVector{T}, w::AbstractV
         s += w[i] * (f(xm) + f(xp))
     end
     return @fastmath Δx * h * s
+end
+
+"""
+    integrate1D_avx(f, low::Real, up::Real, x, w, h)
+
+SIMD-accelerated 1D integration over `[low, up]` using `LoopVectorization`.
+Bounds are converted to the node type `T` to support inputs such as `π`.
+"""
+function integrate1D_avx(f::S, low::Real, up::Real, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
+    return integrate1D_avx(f, T(low), T(up), x, w, h)
 end
