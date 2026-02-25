@@ -269,7 +269,8 @@ end
     quad_cmpl(f, [low, up]; tol=1e-12, max_levels=10)
 
 High-level interface for Tanh-Sinh quadrature with endpoint sensitivity.
-`f` should accept three arguments: `f(x, 1-x, 1+x)`.
+`f` should accept three arguments: `f(x, b-x, x-a)` for interval `[a, b]`.
+For `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
 """
 function quad_cmpl(f::Function, low::T, up::T; tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
     if !(T <: AbstractFloat)

@@ -290,8 +290,8 @@ end
     adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b; tol::Real=1e-12, max_levels::Int=10)
 
 Adaptive 1D Tanh-Sinh integration for functions sensitive near endpoints.
-`f` should accept three arguments: `f(x, 1-x, 1+x)` for the interval `[-1, 1]`.
-For general `[a, b]`, the arguments are `f(x, (b-x)/(b-a), (x-a)/(b-a))`.
+`f` should accept three arguments: `f(x, b-x, x-a)` for the interval `[a, b]`.
+For the default interval `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
 """
 function adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b;
     tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
@@ -299,20 +299,22 @@ function adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b;
     Δx = 0.5 * (b_T - a_T)
     x₀ = 0.5 * (b_T + a_T)
 
-    tm = tmax(T)
+    # Complement coordinates remain accurate well beyond t_x_max(T),
+    # so use the weight-based window to avoid truncating endpoint tails.
+    tm = t_w_max(T, 1)
     h = tm / 2
     w0 = T(π) / 2
-    s_total = w0 * f(x₀, T(0.5), T(0.5))
+    s_total = w0 * f(x₀, Δx, Δx)
 
     for k in 1:2
         tk = k * h
         wk, xk, ck = weight(tk), ordinate(tk), ordinate_complement(tk)
-        # f(x, (b-x)/(b-a), (x-a)/(b-a))
+        # f(x, b-x, x-a)
         # At x = x₀ + Δx*xk:
-        # (b - (x₀ + Δx*xk)) / (b - a) = (Δx - Δx*xk) / (2Δx) = 0.5 * (1 - xk) = 0.5 * ck
-        # (x₀ + Δx*xk - a) / (b - a) = (Δx + Δx*xk) / (2Δx) = 0.5 * (1 + xk)
-        s_total += wk * (f(x₀ + Δx * xk, 0.5 * ck, 0.5 * (one(T) + xk)) +
-                         f(x₀ - Δx * xk, 0.5 * (one(T) + xk), 0.5 * ck))
+        # b - (x₀ + Δx*xk) = (x₀ + Δx) - (x₀ + Δx*xk) = Δx * (1 - xk) = Δx * ck
+        # (x₀ + Δx*xk) - a = (x₀ + Δx*xk) - (x₀ - Δx) = Δx * (1 + xk)
+        s_total += wk * (f(x₀ + Δx * xk, Δx * ck, Δx * (one(T) + xk)) +
+                         f(x₀ - Δx * xk, Δx * (one(T) + xk), Δx * ck))
     end
 
     old_res = Δx * h * s_total
@@ -325,8 +327,8 @@ function adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b;
             tk = k * h
             tk > tm && break
             wk, xk, ck = weight(tk), ordinate(tk), ordinate_complement(tk)
-            s_new += wk * (f(x₀ + Δx * xk, 0.5 * ck, 0.5 * (one(T) + xk)) +
-                           f(x₀ - Δx * xk, 0.5 * (one(T) + xk), 0.5 * ck))
+            s_new += wk * (f(x₀ + Δx * xk, Δx * ck, Δx * (one(T) + xk)) +
+                           f(x₀ - Δx * xk, Δx * (one(T) + xk), Δx * ck))
             k += 2
         end
 

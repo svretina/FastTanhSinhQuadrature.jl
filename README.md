@@ -43,6 +43,8 @@ import Pkg
 Pkg.add("FastTanhSinhQuadrature")
 ```
 
+Supported Julia versions: `1.9` - `1.12`.
+
 ## Quick Start
 
 ### High-Level API: `quad`
@@ -68,7 +70,9 @@ println(val)  # ≈ 4.0
 
 ### High-Accuracy Interface: `quad_cmpl`
 
-For functions extremely sensitive near endpoints (e.g., $1-x$ or $1+x$), use `quad_cmpl`. The function `f` should accept three arguments: `f(x, 1-x, 1+x)`.
+For functions extremely sensitive near endpoints (e.g., $1-x$ or $1+x$), use `quad_cmpl`.
+The function `f` should accept three arguments: `f(x, b-x, x-a)` for interval `[a, b]`.
+For `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
 
 ```julia
 using FastTanhSinhQuadrature
@@ -161,7 +165,7 @@ println(val)  # ≈ 1.0
 |----------|-------------|
 | `quad(f; tol, max_levels)` | Adaptive 1D integration over `[-1, 1]` |
 | `quad(f, low, up; tol, max_levels)` | Adaptive 1D integration over `[low, up]` |
-| `quad_cmpl(f, low, up; ...)` | High-accuracy 1D integration for `f(x, 1-x, 1+x)` |
+| `quad_cmpl(f, low, up; ...)` | High-accuracy 1D integration for `f(x, b-x, x-a)` |
 | `quad(f, low, up; ...)` | Adaptive 2D/3D integration (accepts `SVector` bounds) |
 | `quad_split(f, c; ...)` | Split domain `[-1, 1]` at singularity `c` and integrate |
 | `quad_split(f, c, low, up; ...)` | Split domain `[low, up]` at singularity `c` and integrate |

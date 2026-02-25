@@ -26,8 +26,41 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
     Float64 => 100 * sqrt(eps(Float64)),
     Double64 => 10^7 * sqrt(eps(Double64)),
     BigFloat => 1.0e-18)
+const ALLOW_AVX_FAILURES = VERSION >= v"1.13.0-0"
+
+function run_avx_checks(f::Function)
+    if ALLOW_AVX_FAILURES
+        try
+            f()
+        catch err
+            @info "AVX checks failed but are allowed on Julia $VERSION due to LoopVectorization compatibility: $(sprint(showerror, err))"
+            @test_broken false
+        end
+    else
+        f()
+    end
+end
+
+@inline integral_monomial_1d(low::T, up::T, p::Int) where {T<:Real} =
+    (up^(p + 1) - low^(p + 1)) / T(p + 1)
+
+@inline integral_monomial_3d(low::SVector{3,T}, up::SVector{3,T},
+    px::Int, py::Int, pz::Int) where {T<:Real} =
+    integral_monomial_1d(low[1], up[1], px) *
+    integral_monomial_1d(low[2], up[2], py) *
+    integral_monomial_1d(low[3], up[3], pz)
+
+f2_const(x, y) = one(x)
+f2_xy(x, y) = x * y
+f2_x2y2(x, y) = x^2 * y^2
+
+f3_const(x, y, z) = one(x)
+f3_xyz(x, y, z) = x * y * z
+f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
 
 @testset "FastTanhSinhQuadrature.jl" begin
+
+    include("core.jl")
 
     @testset "Basic integration T=$T" for T in Types
         f0(x) = one(T)
@@ -83,16 +116,20 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
 
         # Testing AVX parity if T is standard float
         if T <: Union{Float32,Float64}
-            F2 = integrate1D_avx(f, x, w, h)
-            G2 = integrate1D_avx(g, x, w, h)
-            @test integrate1D_avx(afg, x, w, h) ≈ a * F2 + G2
-            @test integrate1D_avx(f, one(T), -one(T), x, w, h) ≈ -F2
+            run_avx_checks() do
+                F2 = integrate1D_avx(f, x, w, h)
+                G2 = integrate1D_avx(g, x, w, h)
+                @test integrate1D_avx(afg, x, w, h) ≈ a * F2 + G2
+                @test integrate1D_avx(f, one(T), -one(T), x, w, h) ≈ -F2
+            end
         end
 
         F01 = integrate1D(f, -one(T), a, x, w, h)
         F11 = integrate1D(f, a, one(T), x, w, h)
         @test isapprox(F01 + F11, F1, rtol=rtol[T])
     end
+
+    include("families_1d.jl")
 
     @testset "2D polynomials for [-1, 1], T=$T" for T in Types
         n = T == Float32 ? 40 : 80
@@ -121,6 +158,8 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
         @test isapprox(quad(ψ, up, low), 4one(T); atol=tol_check, rtol=sqrt(eps(T)))
     end
 
+    include("families_3d.jl")
+
     @testset "Adaptive integration 1D" begin
         f(x) = exp(x)
         val_true = exp(1.0) - exp(0.0)
@@ -134,6 +173,17 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
             val_d = quad(f, Double64(0.0), Double64(1.0); tol=1e-15)
             @test isapprox(val_d, val_true, atol=1e-15)
         end
+    end
+
+    @testset "Complement coordinates (quad_cmpl)" begin
+        f_cmpl(x, bmx, xma) = 1 / sqrt(bmx * xma)
+
+        # Default interval [-1, 1]
+        @test isapprox(quad_cmpl(f_cmpl, -1.0, 1.0; tol=1e-12), π, atol=1e-12)
+
+        # General interval [a, b]
+        a, b = -2.5, 3.25
+        @test isapprox(quad_cmpl(f_cmpl, a, b; tol=1e-12), π, atol=1e-12)
     end
 
     @testset "Logarithmic singularities T=$T" for T in Types
@@ -161,33 +211,10 @@ const rtol = Dict(Float32 => 10 * sqrt(eps(Float32)),
         # Exact is 4
         # Relax tolerance slightly for floating point noise near singularity
         @test isapprox(quad_split(f_abs, 0.0, -1.0, 1.0), 4.0, atol=1e-7)
+        @test isapprox(quad_split(f_abs, 0.0), 4.0, atol=1e-7)
     end
 
-    @testset "Edge Cases and Safety" begin
-        # Zero range
-        @test quad(x -> x, 1.0, 1.0) == 0.0
-        # Flipped
-        @test isapprox(quad(x -> x, 1.0, 0.0), -0.5, atol=1e-12)
-
-        # Pre-computed integration should accept irrational bounds (e.g. π)
-        x, w, h = tanhsinh(Float64, 80)
-        @test isapprox(integrate1D(x -> sin(x)^2, 0.0, π, x, w, h), π / 2, atol=1e-12)
-        @test isapprox(integrate1D_avx(x -> sin(x)^2, 0.0, π, x, w, h), π / 2, atol=1e-12)
-        @test isapprox(integrate2D((x, y) -> 1.0, SVector(0.0, 0.0), SVector(π, π), x, w, h), π^2, atol=1e-12)
-        @test isapprox(integrate2D_avx((x, y) -> 1.0, SVector(0.0, 0.0), SVector(π, π), x, w, h), π^2, atol=1e-12)
-        @test isapprox(integrate2D((x, y) -> 1.0, [0.0, 0.0], [π, π], x, w, h), π^2, atol=1e-12)
-        @test isapprox(integrate3D((x, y, z) -> 1.0, SVector(0.0, 0.0, 0.0), SVector(π, π, π), x, w, h), π^3, atol=1e-11)
-        @test isapprox(integrate3D_avx((x, y, z) -> 1.0, SVector(0.0, 0.0, 0.0), SVector(π, π, π), x, w, h), π^3, atol=1e-11)
-        @test isapprox(integrate3D((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [π, π, π], x, w, h), π^3, atol=1e-11)
-
-        # High-level interfaces should also accept mixed real bound types
-        @test isapprox(quad(x -> x, 0.0, π), π^2 / 2, atol=1e-12)
-        @test isapprox(quad((x, y) -> 1.0, [0.0, 0.0], [π, π]), π^2, atol=1e-11)
-        @test isapprox(quad_split(x -> 1 / sqrt(abs(x)), 0, -1, 1.0), 4.0, atol=1e-7)
-
-        # 3D
-        @test isapprox(quad((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]), 1.0, atol=1e-12)
-    end
+    include("dispatch.jl")
 end
 
 # Aqua.jl quality assurance tests
@@ -196,4 +223,14 @@ using Aqua
     Aqua.test_all(FastTanhSinhQuadrature)
 end
 
-include("TypeStabilityTests.jl")
+if VERSION < v"1.11.0-0"
+    @info "Skipping JET type stability tests on Julia $VERSION (enabled for Julia 1.11/1.12)."
+elseif VERSION >= v"1.13.0-0"
+    @info "Skipping JET type stability tests on Julia $VERSION (JET currently not compatible with Julia 1.13+)."
+else
+    using Pkg
+    jet_series = VERSION < v"1.12.0-0" ? "0.9" : "0.11"
+    @info "Installing JET $jet_series for Julia $VERSION and running type stability tests."
+    Pkg.add(Pkg.PackageSpec(name="JET", version=jet_series))
+    include("TypeStabilityTests.jl")
+end
