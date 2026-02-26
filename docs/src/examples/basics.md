@@ -116,3 +116,23 @@ val2 = integrate1D_avx(exp, x, w, h)
 
 println("Standard: $val1, SIMD: $val2")
 ```
+
+## 6. Mixed Real Bounds (`Int`, `Float64`, `π`)
+
+Pre-computed and high-level APIs accept mixed real bound types and convert internally:
+
+```julia
+using FastTanhSinhQuadrature
+using StaticArrays
+
+x, w, h = tanhsinh(Float64, 80)
+
+# Pre-computed 1D with irrational upper bound
+val1 = integrate1D(x -> sin(x)^2, 0.0, π, x, w, h)  # ≈ π/2
+
+# High-level 1D with mixed types
+val2 = quad(x -> x, 0, π)  # ≈ π^2/2
+
+# Pre-computed 2D with vector bounds
+val3 = integrate2D((x, y) -> 1.0, [0.0, 0.0], [π, π], x, w, h)  # ≈ π^2
+```

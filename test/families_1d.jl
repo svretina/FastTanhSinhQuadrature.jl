@@ -25,3 +25,21 @@
     @test isapprox(quad(log_sing, -1.0, 1.0; tol=1e-12), exact_log, atol=1e-11)
     @test isapprox(quad_cmpl(cmpl_sing, -1.0, 1.0; tol=1e-12), π, atol=1e-12)
 end
+
+@testset "Complement family formulas" begin
+    # For ∫_a^b log(b-x) dx, substitute u = b - x:
+    # exact = ∫_0^(b-a) log(u) du = (b-a) * (log(b-a) - 1)
+    a, b = -2.5, 3.25
+    exact_log = (b - a) * (log(b - a) - 1)
+    f_log_right(x, bmx, xma) = log(bmx)
+    f_log_left(x, bmx, xma) = log(xma)
+
+    @test isapprox(quad_cmpl(f_log_right, a, b; tol=1e-12), exact_log, atol=1e-12)
+    @test isapprox(quad_cmpl(f_log_left, a, b; tol=1e-12), exact_log, atol=1e-12)
+
+    # For [0,1], ∫ exp(-1/(1-x)) dx = 0.148495506775922047918... (high-precision reference).
+    f_exp_boundary(x, bmx, xma) = exp(-1 / bmx)
+    exact_exp_boundary = 0.1484955067759220479
+    @test isapprox(quad_cmpl(f_exp_boundary, 0.0, 1.0; tol=1e-14, max_levels=20),
+        exact_exp_boundary, atol=1e-14)
+end

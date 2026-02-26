@@ -43,6 +43,24 @@ val = integrate3D((x,y,z) -> x*y*z, low3, up3, x, w, h)
 println("3D Integral of xyz: $val")  # ≈ 1/8 = 0.125
 ```
 
+### 3D Anisotropic Box with Analytic Check
+
+```julia
+using StaticArrays
+
+x, w, h = tanhsinh(Float64, 80)
+low = SVector(-2.0, -1.0, 0.0)
+up  = SVector(3.0, 2.0, 4.0)
+
+f(x, y, z) = x^2 + 2y + 3z^2
+val = integrate3D(f, low, up, x, w, h)
+
+# Exact integral:
+# ∫x^2 dV + 2∫y dV + 3∫z^2 dV over the box
+exact = 1160.0
+println("3D anisotropic integral: $val (exact = $exact)")
+```
+
 ## 2. Pre-computing Nodes for Performance
 
 For performance-critical code where you integrate many functions or run loops, always pre-calculate the quadrature nodes `(x, w, h)`.
@@ -106,6 +124,20 @@ up  = SVector(1.0, 1.0)
 
 val = quad_split(f_sing, center, low, up)
 println("2D integral with near-singularity: $val")
+```
+
+For 3D:
+
+```julia
+using StaticArrays
+
+f_abs3(x, y, z) = 1 / sqrt(abs(x * y * z))
+center3 = SVector(0.0, 0.0, 0.0)
+low3    = SVector(-1.0, -1.0, -1.0)
+up3     = SVector(1.0, 1.0, 1.0)
+
+val3 = quad_split(f_abs3, center3, low3, up3)
+println("3D split integral: $val3")  # ≈ 64
 ```
 
 ## 5. Arbitrary Precision with BigFloat

@@ -289,8 +289,9 @@ end
 """
     adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b; tol::Real=1e-12, max_levels::Int=10)
 
-Adaptive 1D Tanh-Sinh integration for functions sensitive near endpoints.
-`f` should accept three arguments: `f(x, b-x, x-a)` for the interval `[a, b]`.
+Adaptive 1D Tanh-Sinh integration for endpoint-distance-aware integrands.
+For interval `[a, b]`, `f` should accept `f(x, b_minus_x, x_minus_a)`,
+where `b_minus_x = b - x` and `x_minus_a = x - a`.
 For the default interval `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
 """
 function adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b;

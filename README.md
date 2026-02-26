@@ -21,6 +21,7 @@ Fast and high-precision numerical integration using **Tanh-Sinh (Double Exponent
 - **Arbitrary Precision Support**: Seamlessly works with `Float32`, `Float64`, `BigFloat`, and extended precision types like `Double64` (from `DoubleFloats.jl`).
 - **High Performance**: Specialized `integrate1D_avx`, `integrate2D_avx`, `integrate3D_avx` routines utilize `LoopVectorization.jl` for maximum speed.
 - **Multidimensional Support**: Built-in support for **1D**, **2D**, and **3D** integration domains.
+- **Flexible Bound Types**: Pre-computed and high-level interfaces accept mixed `Real` bounds (for example `Int`, `Float64`, and `π`) and convert them safely to the node type.
 - **Memory Efficiency**: Pre-compute quadrature nodes and weights once and reuse them for multiple integrations.
 - **Singularity Handling**: Robust handling of functions with singularities at integration boundaries via `quad_split` and the new **Complement Interface** `quad_cmpl`.
 - **Double Exponential Convergence**: Achieve machine precision with few points even for singular integrands.
@@ -47,6 +48,13 @@ Supported Julia versions: `1.9` - `1.12`.
 
 ## Quick Start
 
+### Choosing an Interface
+
+- Use `quad` for one-off integrations and automatic refinement.
+- Use `integrate1D`/`integrate2D`/`integrate3D` with pre-computed `(x, w, h)` when evaluating many integrals on the same geometry.
+- Use `_avx` variants for `Float32`/`Float64` when your integrand is compatible with `LoopVectorization`.
+- Use `quad_split` for interior singularities and `quad_cmpl` for endpoint-sensitive formulas involving `1-x` / `1+x`.
+
 ### High-Level API: `quad`
 
 The simplest way to integrate is using the `quad` function, which provides adaptive integration:
@@ -70,16 +78,36 @@ println(val)  # ≈ 4.0
 
 ### High-Accuracy Interface: `quad_cmpl`
 
-For functions extremely sensitive near endpoints (e.g., $1-x$ or $1+x$), use `quad_cmpl`.
-The function `f` should accept three arguments: `f(x, b-x, x-a)` for interval `[a, b]`.
+Use `quad_cmpl` when your integrand is naturally written in endpoint distances.
+You call it exactly like `quad`:
+
+```julia
+val = quad_cmpl(f, a, b)
+```
+
+The difference is the callback signature. For interval `[a, b]`, `f` must accept:
+`f(x, b_minus_x, x_minus_a)`.
+
+At each quadrature node `x`, the package passes:
+
+- `x`: evaluation point in `[a, b]`
+- `b_minus_x = b - x`: distance to the right endpoint
+- `x_minus_a = x - a`: distance to the left endpoint
+
 For `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
+
+Why this interface exists:
+Tanh-Sinh places many nodes extremely close to endpoints. In that regime, computing `b - x`
+or `x - a` directly from rounded `x` can lose relative precision (subtractive cancellation).
+`quad_cmpl` computes and passes these complements in a numerically stable way, improving robustness for
+endpoint-sensitive formulas such as `log(b-x)`, `1/sqrt((b-x)(x-a))`, or `exp(-1/(b-x))`.
 
 ```julia
 using FastTanhSinhQuadrature
 
-# Integrate f(x) = 1/sqrt(1-x^2) using complementary coordinates
+# Integrate f(x) = 1/sqrt(1-x^2) using passed endpoint distances
 # 1-x^2 = (1-x)(1+x)
-f(x, omx, opx) = 1 / sqrt(omx * opx)
+f(x, b_minus_x, x_minus_a) = 1 / sqrt(b_minus_x * x_minus_a)
 val = quad_cmpl(f, -1.0, 1.0)
 println(val)  # ≈ π ≈ 3.14159...
 ```
@@ -98,6 +126,7 @@ x, w, h = tanhsinh(Float64, 80)
 f1(x) = sin(x)^2
 f2(x) = cos(x)^2
 
+# Bounds can be any Real type (Float64, Int, Irrational such as π).
 res1 = integrate1D(f1, 0.0, π, x, w, h)
 res2 = integrate1D(f2, 0.0, π, x, w, h)
 println("Integrals: $res1, $res2")  # Both ≈ π/2
@@ -164,9 +193,9 @@ println(val)  # ≈ 1.0
 | Function | Description |
 |----------|-------------|
 | `quad(f; tol, max_levels)` | Adaptive 1D integration over `[-1, 1]` |
-| `quad(f, low, up; tol, max_levels)` | Adaptive 1D integration over `[low, up]` |
+| `quad(f, low, up; tol, max_levels)` | Adaptive 1D integration over `[low, up]` for `low, up <: Real` |
 | `quad_cmpl(f, low, up; ...)` | High-accuracy 1D integration for `f(x, b-x, x-a)` |
-| `quad(f, low, up; ...)` | Adaptive 2D/3D integration (accepts `SVector` bounds) |
+| `quad(f, low, up; ...)` | Adaptive 2D/3D integration (accepts `SVector` or vectors of reals) |
 | `quad_split(f, c; ...)` | Split domain `[-1, 1]` at singularity `c` and integrate |
 | `quad_split(f, c, low, up; ...)` | Split domain `[low, up]` at singularity `c` and integrate |
 
@@ -179,11 +208,11 @@ println(val)  # ≈ 1.0
 | `integrate1D(f, N)` | Integrate `f` over `[-1, 1]` using `N` points |
 | `integrate1D(T, f, N)` | Integrate `f` over `[-1, 1]` using `N` points in type `T` |
 | `integrate1D(f, x, w, h)` | Integrate `f` over `[-1, 1]` using pre-computed nodes |
-| `integrate1D(f, low, up, x, w, h)` | Integrate `f` over `[low, up]` using pre-computed nodes |
+| `integrate1D(f, low, up, x, w, h)` | Integrate `f` over `[low, up]` (`low, up <: Real`) using pre-computed nodes |
 | `integrate2D(f, x, w, h)` | 2D integration over `[-1, 1]^2` |
-| `integrate2D(f, low, up, x, w, h)` | 2D integration over rectangle defined by `low`, `up` |
+| `integrate2D(f, low, up, x, w, h)` | 2D integration over rectangle (`SVector` or vector bounds) |
 | `integrate3D(f, x, w, h)` | 3D integration over `[-1, 1]^3` |
-| `integrate3D(f, low, up, x, w, h)` | 3D integration over box defined by `low`, `up` |
+| `integrate3D(f, low, up, x, w, h)` | 3D integration over box (`SVector` or vector bounds) |
 
 ### SIMD-Accelerated Variants
 
