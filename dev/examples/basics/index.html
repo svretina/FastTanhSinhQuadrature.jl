@@ -38,34 +38,51 @@ println(&quot;Pre-computed result: $val&quot;)</code></pre><h2 id="4.-Dealing-wi
 
 # The singularity at x=1 is automatically handled
 val = quad(f_sing, -1.0, 1.0)
-println(&quot;Integral of log(1-x) on [-1, 1]: $val&quot;)  # ≈ -0.6137</code></pre><h3 id="Inverse-Square-Root-1/sqrt(x)-at-x0"><a class="docs-heading-anchor" href="#Inverse-Square-Root-1/sqrt(x)-at-x0">Inverse Square Root <code>1/sqrt(x)</code> at <code>x=0</code></a><a id="Inverse-Square-Root-1/sqrt(x)-at-x0-1"></a><a class="docs-heading-anchor-permalink" href="#Inverse-Square-Root-1/sqrt(x)-at-x0" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Integrate 1/sqrt(x) from 0 to 1
+exact = -2 + log(4)
+println(&quot;Error: $(val - exact)&quot;)
+# Error: 5.551115123125783e-16</code></pre><h3 id="Inverse-Square-Root-1/sqrt(x)-at-x0"><a class="docs-heading-anchor" href="#Inverse-Square-Root-1/sqrt(x)-at-x0">Inverse Square Root <code>1/sqrt(x)</code> at <code>x=0</code></a><a id="Inverse-Square-Root-1/sqrt(x)-at-x0-1"></a><a class="docs-heading-anchor-permalink" href="#Inverse-Square-Root-1/sqrt(x)-at-x0" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Integrate 1/sqrt(x) from 0 to 1
 f_sqrt(x) = 1.0 / sqrt(x)
 
 x, w, h = tanhsinh(Float64, 80)
 val = integrate1D(f_sqrt, 0.0, 1.0, x, w, h)
-println(&quot;Integral of 1/sqrt(x) on [0, 1]: $val&quot;)  # ≈ 2.0</code></pre><h3 id="Internal-Singularities-with-quad_split"><a class="docs-heading-anchor" href="#Internal-Singularities-with-quad_split">Internal Singularities with <code>quad_split</code></a><a id="Internal-Singularities-with-quad_split-1"></a><a class="docs-heading-anchor-permalink" href="#Internal-Singularities-with-quad_split" title="Permalink"></a></h3><p>For singularities inside the domain, use <code>quad_split</code>:</p><pre><code class="language-julia hljs"># 1/sqrt(|x|) has a singularity at x=0
+exact = 2//1
+println(&quot;Error: $(val - exact)&quot;)
+# Error: -7.65379870593108e-9</code></pre><h3 id="Internal-Singularities-with-quad_split"><a class="docs-heading-anchor" href="#Internal-Singularities-with-quad_split">Internal Singularities with <code>quad_split</code></a><a id="Internal-Singularities-with-quad_split-1"></a><a class="docs-heading-anchor-permalink" href="#Internal-Singularities-with-quad_split" title="Permalink"></a></h3><p>For singularities inside the domain, use <code>quad_split</code>:</p><pre><code class="language-julia hljs"># 1/sqrt(|x|) has a singularity at x=0
 f_abs(x) = 1 / sqrt(abs(x))
 
 # Split at the singularity point
 val = quad_split(f_abs, 0.0, -1.0, 1.0)
-println(&quot;Integral of 1/sqrt(|x|) on [-1, 1]: $val&quot;)  # ≈ 4.0</code></pre><h2 id="5.-SIMD-Accelerated-Integration"><a class="docs-heading-anchor" href="#5.-SIMD-Accelerated-Integration">5. SIMD-Accelerated Integration</a><a id="5.-SIMD-Accelerated-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#5.-SIMD-Accelerated-Integration" title="Permalink"></a></h2><p>For <code>Float32</code>/<code>Float64</code>, use the <code>_avx</code> variants for maximum speed:</p><pre><code class="language-julia hljs">x, w, h = tanhsinh(Float64, 100)
+exact = 4//1
+println(&quot;Error: $(val - exact)&quot;)
+# Error: -2.9353008912380574e-8</code></pre><h2 id="5.-SIMD-Accelerated-Integration"><a class="docs-heading-anchor" href="#5.-SIMD-Accelerated-Integration">5. SIMD-Accelerated Integration</a><a id="5.-SIMD-Accelerated-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#5.-SIMD-Accelerated-Integration" title="Permalink"></a></h2><p>For <code>Float32</code>/<code>Float64</code>, use the <code>_avx</code> variants for maximum speed:</p><pre><code class="language-julia hljs">x, w, h = tanhsinh(Float64, 100)
 
 # Standard integration
 val1 = integrate1D(exp, x, w, h)
 
 # SIMD-accelerated (2-3x faster)
 val2 = integrate1D_avx(exp, x, w, h)
-
-println(&quot;Standard: $val1, SIMD: $val2&quot;)</code></pre><h2 id="6.-Mixed-Real-Bounds-(Int,-Float64,-π)"><a class="docs-heading-anchor" href="#6.-Mixed-Real-Bounds-(Int,-Float64,-π)">6. Mixed Real Bounds (<code>Int</code>, <code>Float64</code>, <code>π</code>)</a><a id="6.-Mixed-Real-Bounds-(Int,-Float64,-π)-1"></a><a class="docs-heading-anchor-permalink" href="#6.-Mixed-Real-Bounds-(Int,-Float64,-π)" title="Permalink"></a></h2><p>Pre-computed and high-level APIs accept mixed real bound types and convert internally:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
+t1 = @belapsed integrate1D($exp, $x, $w, $h)
+t2 = @belapsed integrate1D_avx($exp, $x, $w, $h)
+println(&quot;Speedup: $(t1/t2)&quot;)
+# Speedup: 3.1189909985624995</code></pre><h2 id="6.-Mixed-Real-Bounds-(Int,-Float64,-π)"><a class="docs-heading-anchor" href="#6.-Mixed-Real-Bounds-(Int,-Float64,-π)">6. Mixed Real Bounds (<code>Int</code>, <code>Float64</code>, <code>π</code>)</a><a id="6.-Mixed-Real-Bounds-(Int,-Float64,-π)-1"></a><a class="docs-heading-anchor-permalink" href="#6.-Mixed-Real-Bounds-(Int,-Float64,-π)" title="Permalink"></a></h2><p>Pre-computed and high-level APIs accept mixed real bound types and convert internally:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
 using StaticArrays
 
 x, w, h = tanhsinh(Float64, 80)
 
 # Pre-computed 1D with irrational upper bound
+exact = π/2
 val1 = integrate1D(x -&gt; sin(x)^2, 0.0, π, x, w, h)  # ≈ π/2
+println(&quot;Error: $(val1 - exact)&quot;)
+# Error: -2.220446049250313e-16
 
 # High-level 1D with mixed types
+exact = π^2/2
 val2 = quad(x -&gt; x, 0, π)  # ≈ π^2/2
+println(&quot;Error: $(val2 - exact)&quot;)
+# Error: 0.0
 
 # Pre-computed 2D with vector bounds
-val3 = integrate2D((x, y) -&gt; 1.0, [0.0, 0.0], [π, π], x, w, h)  # ≈ π^2</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../convergence/">« Convergence</a><a class="docs-footer-nextpage" href="../advanced/">Advanced Usage »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 26 February 2026 01:22">Thursday 26 February 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+exact = π^2
+val3 = integrate2D((x, y) -&gt; 1.0, [0.0, 0.0], [π, π], x, w, h)  # ≈ π^2
+println(&quot;Error: $(val3 - exact)&quot;)
+# Error: -3.552713678800501e-15</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../convergence/">« Convergence</a><a class="docs-footer-nextpage" href="../advanced/">Advanced Usage »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 26 February 2026 01:33">Thursday 26 February 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
