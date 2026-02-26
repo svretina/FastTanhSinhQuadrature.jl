@@ -74,7 +74,9 @@ f_sing(x) = log(1-x)
 
 # The singularity at x=1 is automatically handled
 val = quad(f_sing, -1.0, 1.0)
-println("Integral of log(1-x) on [-1, 1]: $val")  # ≈ -0.6137
+exact = -2 + log(4)
+println("Error: $(val - exact)")
+# Error: 5.551115123125783e-16
 ```
 
 ### Inverse Square Root `1/sqrt(x)` at `x=0`
@@ -85,7 +87,9 @@ f_sqrt(x) = 1.0 / sqrt(x)
 
 x, w, h = tanhsinh(Float64, 80)
 val = integrate1D(f_sqrt, 0.0, 1.0, x, w, h)
-println("Integral of 1/sqrt(x) on [0, 1]: $val")  # ≈ 2.0
+exact = 2//1
+println("Error: $(val - exact)")
+# Error: -7.65379870593108e-9
 ```
 
 ### Internal Singularities with `quad_split`
@@ -98,7 +102,9 @@ f_abs(x) = 1 / sqrt(abs(x))
 
 # Split at the singularity point
 val = quad_split(f_abs, 0.0, -1.0, 1.0)
-println("Integral of 1/sqrt(|x|) on [-1, 1]: $val")  # ≈ 4.0
+exact = 4//1
+println("Error: $(val - exact)")
+# Error: -2.9353008912380574e-8
 ```
 
 ## 5. SIMD-Accelerated Integration
@@ -113,8 +119,10 @@ val1 = integrate1D(exp, x, w, h)
 
 # SIMD-accelerated (2-3x faster)
 val2 = integrate1D_avx(exp, x, w, h)
-
-println("Standard: $val1, SIMD: $val2")
+t1 = @belapsed integrate1D($exp, $x, $w, $h)
+t2 = @belapsed integrate1D_avx($exp, $x, $w, $h)
+println("Speedup: $(t1/t2)")
+# Speedup: 3.1189909985624995
 ```
 
 ## 6. Mixed Real Bounds (`Int`, `Float64`, `π`)
@@ -128,11 +136,20 @@ using StaticArrays
 x, w, h = tanhsinh(Float64, 80)
 
 # Pre-computed 1D with irrational upper bound
+exact = π/2
 val1 = integrate1D(x -> sin(x)^2, 0.0, π, x, w, h)  # ≈ π/2
+println("Error: $(val1 - exact)")
+# Error: -2.220446049250313e-16
 
 # High-level 1D with mixed types
+exact = π^2/2
 val2 = quad(x -> x, 0, π)  # ≈ π^2/2
+println("Error: $(val2 - exact)")
+# Error: 0.0
 
 # Pre-computed 2D with vector bounds
+exact = π^2
 val3 = integrate2D((x, y) -> 1.0, [0.0, 0.0], [π, π], x, w, h)  # ≈ π^2
+println("Error: $(val3 - exact)")
+# Error: -3.552713678800501e-15
 ```

@@ -20,11 +20,13 @@ up  = SVector(1.0, 1.0)
 # Pre-computed nodes
 x, w, h = tanhsinh(Float64, 40)
 val = integrate2D(f_2d, low, up, x, w, h)
-println("2D Integral: $val")  # ≈ 8/3
+println("Error: $(val - 8//3)")
+# Error: 4.440892098500626e-16
 
 # Or using the high-level quad interface
 val = quad(f_2d, low, up)
-println("2D Integral (quad): $val")
+println("Error: $(val - 8//3)")
+# Error: -1.3322676295501878e-15
 ```
 
 ### 3D Integration
@@ -40,7 +42,8 @@ x, w, h = tanhsinh(Float64, 30)
 low3 = SVector(0.0, 0.0, 0.0)
 up3  = SVector(1.0, 1.0, 1.0)
 val = integrate3D((x,y,z) -> x*y*z, low3, up3, x, w, h)
-println("3D Integral of xyz: $val")  # ≈ 1/8 = 0.125
+println("Error: $(val - 1//8)")
+# Error: 0.0
 ```
 
 ### 3D Anisotropic Box with Analytic Check
@@ -56,9 +59,10 @@ f(x, y, z) = x^2 + 2y + 3z^2
 val = integrate3D(f, low, up, x, w, h)
 
 # Exact integral:
-# ∫x^2 dV + 2∫y dV + 3∫z^2 dV over the box
-exact = 1160.0
-println("3D anisotropic integral: $val (exact = $exact)")
+exact = 1160//1
+
+println("Error: $(val - exact)")
+# Error: -1.8189894035458565e-12
 ```
 
 ## 2. Pre-computing Nodes for Performance
@@ -80,22 +84,43 @@ end
 
 ## 3. SIMD Acceleration with `_avx` Variants
 
-For functions compatible with `LoopVectorization.jl`, you can achieve significant speedups (2-3x):
+For functions compatible with `LoopVectorization.jl`, you can achieve significant speedups:
 
 ```julia
 using FastTanhSinhQuadrature
+using BenchmarkTools
 
 f_poly(x) = x^12 + 3x^5 - 2x
 
 x, w, h = tanhsinh(Float64, 500)
 
-# Standard
-@time val1 = integrate1D(f_poly, x, w, h)
+julia> @benchmark integrate1D_avx($f_poly, $x, $w, $h)
+BenchmarkTools.Trial: 10000 samples with 980 evaluations per sample.
+ Range (min … max):  65.323 ns … 224.431 ns  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     73.924 ns               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   76.228 ns ±   7.036 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
 
-# SIMD-accelerated
-@time val2 = integrate1D_avx(f_poly, x, w, h)
+           █ ▄▇                                                 
+  ▂▂▂▂▂▂▂▂██▅██▅▇▆▄▅▄▃▄▅▃▃▅▄▃▄▄▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂ ▃
+  65.3 ns         Histogram: frequency by time          106 ns <
 
-println("Standard: $val1, SIMD: $val2")
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+julia> @benchmark integrate1D($f_poly, $x, $w, $h)
+BenchmarkTools.Trial: 10000 samples with 8 evaluations per sample.
+ Range (min … max):  3.586 μs …  16.761 μs  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     4.526 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   4.680 μs ± 617.014 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+            ▁▁█▄                                               
+  ▂▂▂▂▁▂▁▂▃▄████▆▅▄▄▃▄▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▃
+  3.59 μs         Histogram: frequency by time        7.84 μs <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+t1 = @belapsed integrate1D_avx($f_poly, $x, $w, $h)
+t2 = @belapsed integrate1D($f_poly, $x, $w, $h)
+println("Speedup: $(t2/t1)")
+# Speedup: 60.6060266328906
 ```
 
 ### 2D/3D SIMD
@@ -108,6 +133,9 @@ up  = SVector(1.0, 1.0)
 
 # SIMD-accelerated 2D integration
 val = integrate2D_avx((x,y) -> x^2 + y^2, low, up, x, w, h)
+aval = 8//3
+println("Error: $(val - aval)")
+# Error: -3.162230512660876733012324488637462686944251599484320216324290926764451115142467e-57
 ```
 
 ## 4. Handling Internal Singularities
@@ -116,14 +144,16 @@ For functions with singularities inside the domain, use `quad_split`:
 
 ```julia
 # 2D example: singularity at (0, 0)
-f_sing(x, y) = 1 / sqrt(x^2 + y^2 + 0.01)
+f_sing(x, y) = 1 / sqrt(x^2 + y^2)
 
 center = SVector(0.0, 0.0)
 low = SVector(-1.0, -1.0)
 up  = SVector(1.0, 1.0)
 
 val = quad_split(f_sing, center, low, up)
-println("2D integral with near-singularity: $val")
+aval = 8*asinh(one(val))
+println("Error: $(val - aval)")
+# Error: -9.14823772291129e-14
 ```
 
 For 3D:
@@ -150,5 +180,7 @@ f(x) = log(1 + x)
 
 val = integrate1D(f, x, w, h)
 println("High precision: $val")
-# Achieves ~50+ correct decimal digits
+println("Exact value: $-2 + log(4)")
+println("Error: $(val - (-2+ log(BigFloat(4))))")
+# 1.351669432265398138420644011346412477230033406653628853271033861612521133030749e-62
 ```

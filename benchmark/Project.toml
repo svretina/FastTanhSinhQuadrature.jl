@@ -1,6 +1,13 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Cuba = "8a292aeb-7a57-582c-b821-06e4c11590b1"
+Cubature = "667455a9-e2ce-5579-9412-b964f529a492"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
 FastTanhSinhQuadrature = "b650e0df-f744-4436-b963-b44034668c57"
+HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
+QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StrideArrays = "d1fa6d79-ef01-42a6-86c9-f7c551f8593b"
+
+[sources]
+FastTanhSinhQuadrature = {path = ".."}
