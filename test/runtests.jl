@@ -158,6 +158,8 @@ f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
         @test isapprox(quad(ψ, up, low), 4one(T); atol=tol_check, rtol=sqrt(eps(T)))
     end
 
+    include("families_2d.jl")
+
     include("families_3d.jl")
 
     @testset "Adaptive integration 1D" begin

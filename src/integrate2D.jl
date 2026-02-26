@@ -22,17 +22,9 @@
 Calculate the 2D integral of `f` over `[-1, 1]^2` using pre-computed nodes/weights.
 """
 function integrate2D(f::S, x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
-    s = T(π)^2 / 4 * f(zero(T), zero(T))
-    @inbounds for i in eachindex(x)
-        for j in eachindex(x)
-            xp = x[i]
-            xm = -xp
-            yp = x[j]
-            ym = -yp
-            s += w[i] * w[j] * (f(xm, ym) + f(xp, ym) + f(xm, yp) + f(xp, yp))
-        end
-    end
-    return h^2 * s
+    low = SVector{2,T}(-one(T), -one(T))
+    up = SVector{2,T}(one(T), one(T))
+    return integrate2D(f, low, up, x, w, h)
 end
 
 """
