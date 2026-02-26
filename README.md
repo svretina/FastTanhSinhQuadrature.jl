@@ -242,32 +242,36 @@ println(val)  # ≈ 1.0
 
 ### Results
 
-Comparison against `FastGaussQuadrature.jl` for various functions.
-- `TS`: `integrate1D` (standard Tanh-Sinh)
-- `TS SIMD`: `integrate1D_avx` (SIMD-optimized Tanh-Sinh)
-- `GQ`: `FastGaussQuadrature.jl` (Gauss-Legendre)
+Comparison across:
+- `FastTanhSinhQuadrature.jl` (`adaptive_integrate_*`, `quad`, `_avx`)
+- `QuadGK.jl`
+- `HCubature.jl`
+- `Cubature.jl` (`h` and `p`)
+- `Cuba.jl` (`Vegas`, `Divonne`, `Cuhre`, for >1D)
+- `FastGaussQuadrature.jl` (1D)
 
-Timings are in nanoseconds (ns).
+Methodology:
+- Domain: `[-1,1]^d`
+- Tolerances: `rtol = 1e-6`, `atol = 1e-8`
+- Max evaluations (external adaptive solvers): `200000`
+- Timing: `@belapsed` with interpolation (`samples=3`, `evals=1`)
 
-| Function | Domain | Points | TS (ns) | TS SIMD (ns) | GQ (ns) | Ratio (TS/GQ) | Ratio (TS SIMD/GQ) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| exp(x) | [-1, 1] | 5 | 33.09 | 14.27 | 33.03 | 1.00 | 0.43 |
-| exp(x) | [-1, 1] | 50 | 322.87 | 81.99 | 176.68 | 1.83 | 0.46 |
-| exp(x) | [-1, 1] | 500 | 3374.75 | 782.08 | 1665.50 | 2.03 | 0.47 |
-| sin(x)^2 | [-1, 1] | 5 | 40.39 | 23.38 | 32.63 | 1.24 | 0.72 |
-| sin(x)^2 | [-1, 1] | 50 | 404.32 | 145.48 | 176.75 | 2.29 | 0.82 |
-| sin(x)^2 | [-1, 1] | 500 | 4361.71 | 1409.10 | 1768.40 | 2.47 | 0.80 |
-| 1/(1+25x^2) | [-1, 1] | 5 | 3.00 | 3.75 | 17.35 | 0.17 | 0.22 |
-| 1/(1+25x^2) | [-1, 1] | 50 | 41.82 | 39.17 | 34.77 | 1.20 | 1.13 |
-| 1/(1+25x^2) | [-1, 1] | 500 | 477.21 | 213.24 | 320.39 | 1.49 | 0.67 |
-| sqrt(1-x^2) | [-1, 1] | 5 | 4.06 | 4.69 | 20.31 | 0.20 | 0.23 |
-| sqrt(1-x^2) | [-1, 1] | 50 | 68.01 | 45.31 | 69.68 | 0.98 | 0.65 |
-| sqrt(1-x^2) | [-1, 1] | 500 | 636.53 | 313.13 | 743.43 | 0.86 | 0.42 |
-| x^2 | [-1, 1] | 5 | 2.01 | 3.04 | 19.86 | 0.10 | 0.15 |
-| x^2 | [-1, 1] | 50 | 17.72 | 21.68 | 38.07 | 0.47 | 0.57 |
-| x^2 | [-1, 1] | 500 | 213.31 | 54.97 | 273.19 | 0.78 | 0.20 |
-| log(1-x) | [-1, 1] | 5 | 38.06 | 30.29 | 34.32 | 1.11 | 0.88 |
-| log(1-x) | [-1, 1] | 50 | 371.88 | 187.29 | 214.70 | 1.73 | 0.87 |
-| log(1-x) | [-1, 1] | 500 | 4117.38 | 1978.80 | 2117.80 | 1.94 | 0.93 |
+| Dim | Function | FTS adaptive | FTS quad | FTS avx | QuadGK | HCubature | Cubature h | Cubature p | Cuba Vegas | Cuba Divonne | Cuba Cuhre | FastGauss |
+| :-- | :------- | ----------: | -------: | ------: | -----: | --------: | ---------: | ---------: | ---------: | -----------: | ---------: | --------: |
+| 1D | 1/(1+25x^2) | 4058.0000 | 4126.0000 | 217.0000 | 375.0000 | 1.180e+04 | 1.385e+04 | 1.246e+04 | n/a | n/a | n/a | 97.0000 |
+| 1D | 1/sqrt(1-x^2) | 1102.0000 | 988.0000 | 339.0000 | 6646.0000 | 1.836e+05 | 1.634e+05 | 766.0000 * | n/a | n/a | n/a | 9401.0000 * |
+| 1D | log(1-x) | 1496.0000 | 1513.0000 | 247.0000 | 3399.0000 | 4.422e+04 | 5.497e+04 | 732.0000 * | n/a | n/a | n/a | 9460.0000 |
+| 1D | x^6 - 2x^3 + 0.5 | 2330.0000 | 2221.0000 | 307.0000 | 322.0000 | 7359.0000 | 1591.0000 | 3107.0000 | n/a | n/a | n/a | 77.0000 |
+| 2D | 1/sqrt((1-x^2)(1-y^2)) | 3240.0000 | 3383.0000 | 578.0000 | n/a | 4.455e+07 | 2.752e+07 | 1468.0000 * | 2.470e+07 * | 3.780e+07 * | 2.308e+07 * | n/a |
+| 2D | exp(x+y) | 1.602e+04 | 1.712e+04 | 933.0000 | n/a | 7.078e+04 | 3.199e+04 | 3.125e+04 | 2.408e+07 * | 2.283e+07 | 2.523e+04 | n/a |
+| 2D | x^2 + y^2 | 3400.0000 | 3621.0000 | 294.0000 | n/a | 5857.0000 | 1882.0000 | 7069.0000 | 2.351e+07 * | 2.297e+07 | 2.711e+04 | n/a |
+| 3D | 1/sqrt((1-x^2)(1-y^2)(1-z^2)) | 7.509e+04 | 7.803e+04 | 748.0000 | n/a | 2.778e+07 * | 2.071e+07 * | 3250.0000 * | 2.452e+07 * | 3.176e+07 * | 2.270e+07 * | n/a |
+| 3D | exp(x+y+z) | 8.888e+05 | 8.946e+05 | 1.106e+04 | n/a | 3.228e+05 | 2.271e+05 | 6.014e+05 | 2.682e+07 * | 2.953e+07 * | 4.272e+04 | n/a |
+| 3D | x^2*y^2*z^2 | 5.562e+04 | 5.563e+04 | 688.0000 | n/a | 9.873e+06 | 7.470e+06 | 1.751e+04 | 2.682e+07 * | 3.513e+07 * | 9.269e+06 | n/a |
 
-*Note: The SIMD-optimized `integrate1D_avx` uses `LoopVectorization.jl` and achieves significant speedups, especially for smooth functions.*
+`*` indicates the method did not meet the requested tolerance.
+
+Full raw results are written by the benchmark script to:
+- `benchmark/results/timings.csv`
+- `benchmark/results/timings_full.md`
+- `benchmark/results/timings_summary.md`

@@ -1,31 +1,4 @@
-# Benchmarks
-
-Cross-library timing comparison for:
-- `FastTanhSinhQuadrature.jl`
-- `QuadGK.jl`
-- `HCubature.jl`
-- `Cubature.jl` (`h` and `p` variants)
-- `Cuba.jl` (`Vegas`, `Divonne`, `Cuhre`, for >1D)
-- `FastGaussQuadrature.jl` (1D only)
-
-## Methodology
-
-- Domain: `[-1,1]^d`
-- Tolerances: `rtol = 1e-6`, `atol = 1e-8`
-- Max evaluations (external adaptive solvers): `200000`
-- Timing: `@belapsed` with interpolation (`samples=3`, `evals=1`)
-
-For this package we benchmark:
-- `adaptive_integrate_*` typed calls (minimal-dispatch adaptive path),
-- `quad` convenience calls,
-- precomputed-node `_avx` calls (with the smallest `n` that meets tolerance, if found).
-
-Raw output files are generated at:
-- `benchmark/results/timings.csv`
-- `benchmark/results/timings_full.md`
-- `benchmark/results/timings_summary.md`
-
-## Timing Table
+## Benchmark Timing Table
 
 | Dim | Function | FTS adaptive | FTS quad | FTS avx | QuadGK | HCubature | Cubature h | Cubature p | Cuba Vegas | Cuba Divonne | Cuba Cuhre | FastGauss |
 | :-- | :------- | ----------: | -------: | ------: | -----: | --------: | ---------: | ---------: | ---------: | -----------: | ---------: | --------: |
@@ -40,10 +13,4 @@ Raw output files are generated at:
 | 3D | exp(x+y+z) | 8.888e+05 | 8.946e+05 | 1.106e+04 | n/a | 3.228e+05 | 2.271e+05 | 6.014e+05 | 2.682e+07 * | 2.953e+07 * | 4.272e+04 | n/a |
 | 3D | x^2*y^2*z^2 | 5.562e+04 | 5.563e+04 | 688.0000 | n/a | 9.873e+06 | 7.470e+06 | 1.751e+04 | 2.682e+07 * | 3.513e+07 * | 9.269e+06 | n/a |
 
-`*` indicates the method did not meet the requested tolerance on that case.
-
-## Running Benchmarks
-
-```bash
-julia --project=benchmark benchmark/benchmarks.jl
-```
+`*` indicates result did not meet the requested tolerance.
