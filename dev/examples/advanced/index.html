@@ -26,7 +26,19 @@ x, w, h = tanhsinh(Float64, 30)
 low3 = SVector(0.0, 0.0, 0.0)
 up3  = SVector(1.0, 1.0, 1.0)
 val = integrate3D((x,y,z) -&gt; x*y*z, low3, up3, x, w, h)
-println(&quot;3D Integral of xyz: $val&quot;)  # ≈ 1/8 = 0.125</code></pre><h2 id="2.-Pre-computing-Nodes-for-Performance"><a class="docs-heading-anchor" href="#2.-Pre-computing-Nodes-for-Performance">2. Pre-computing Nodes for Performance</a><a id="2.-Pre-computing-Nodes-for-Performance-1"></a><a class="docs-heading-anchor-permalink" href="#2.-Pre-computing-Nodes-for-Performance" title="Permalink"></a></h2><p>For performance-critical code where you integrate many functions or run loops, always pre-calculate the quadrature nodes <code>(x, w, h)</code>.</p><pre><code class="language-julia hljs"># Pre-calculate once (more expensive operation)
+println(&quot;3D Integral of xyz: $val&quot;)  # ≈ 1/8 = 0.125</code></pre><h3 id="3D-Anisotropic-Box-with-Analytic-Check"><a class="docs-heading-anchor" href="#3D-Anisotropic-Box-with-Analytic-Check">3D Anisotropic Box with Analytic Check</a><a id="3D-Anisotropic-Box-with-Analytic-Check-1"></a><a class="docs-heading-anchor-permalink" href="#3D-Anisotropic-Box-with-Analytic-Check" title="Permalink"></a></h3><pre><code class="language-julia hljs">using StaticArrays
+
+x, w, h = tanhsinh(Float64, 80)
+low = SVector(-2.0, -1.0, 0.0)
+up  = SVector(3.0, 2.0, 4.0)
+
+f(x, y, z) = x^2 + 2y + 3z^2
+val = integrate3D(f, low, up, x, w, h)
+
+# Exact integral:
+# ∫x^2 dV + 2∫y dV + 3∫z^2 dV over the box
+exact = 1160.0
+println(&quot;3D anisotropic integral: $val (exact = $exact)&quot;)</code></pre><h2 id="2.-Pre-computing-Nodes-for-Performance"><a class="docs-heading-anchor" href="#2.-Pre-computing-Nodes-for-Performance">2. Pre-computing Nodes for Performance</a><a id="2.-Pre-computing-Nodes-for-Performance-1"></a><a class="docs-heading-anchor-permalink" href="#2.-Pre-computing-Nodes-for-Performance" title="Permalink"></a></h2><p>For performance-critical code where you integrate many functions or run loops, always pre-calculate the quadrature nodes <code>(x, w, h)</code>.</p><pre><code class="language-julia hljs"># Pre-calculate once (more expensive operation)
 x, w, h = tanhsinh(Float64, 100)
 
 # Reuse many times (cheap operation)
@@ -61,11 +73,19 @@ low = SVector(-1.0, -1.0)
 up  = SVector(1.0, 1.0)
 
 val = quad_split(f_sing, center, low, up)
-println(&quot;2D integral with near-singularity: $val&quot;)</code></pre><h2 id="5.-Arbitrary-Precision-with-BigFloat"><a class="docs-heading-anchor" href="#5.-Arbitrary-Precision-with-BigFloat">5. Arbitrary Precision with BigFloat</a><a id="5.-Arbitrary-Precision-with-BigFloat-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Arbitrary-Precision-with-BigFloat" title="Permalink"></a></h2><pre><code class="language-julia hljs">setprecision(BigFloat, 256)  # 256-bit precision
+println(&quot;2D integral with near-singularity: $val&quot;)</code></pre><p>For 3D:</p><pre><code class="language-julia hljs">using StaticArrays
+
+f_abs3(x, y, z) = 1 / sqrt(abs(x * y * z))
+center3 = SVector(0.0, 0.0, 0.0)
+low3    = SVector(-1.0, -1.0, -1.0)
+up3     = SVector(1.0, 1.0, 1.0)
+
+val3 = quad_split(f_abs3, center3, low3, up3)
+println(&quot;3D split integral: $val3&quot;)  # ≈ 64</code></pre><h2 id="5.-Arbitrary-Precision-with-BigFloat"><a class="docs-heading-anchor" href="#5.-Arbitrary-Precision-with-BigFloat">5. Arbitrary Precision with BigFloat</a><a id="5.-Arbitrary-Precision-with-BigFloat-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Arbitrary-Precision-with-BigFloat" title="Permalink"></a></h2><pre><code class="language-julia hljs">setprecision(BigFloat, 256)  # 256-bit precision
 
 x, w, h = tanhsinh(BigFloat, 150)
 f(x) = log(1 + x)
 
 val = integrate1D(f, x, w, h)
 println(&quot;High precision: $val&quot;)
-# Achieves ~50+ correct decimal digits</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../basics/">« Basic Usage</a><a class="docs-footer-nextpage" href="../../benchmarks/">Benchmarks »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 25 February 2026 23:46">Wednesday 25 February 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+# Achieves ~50+ correct decimal digits</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../basics/">« Basic Usage</a><a class="docs-footer-nextpage" href="../../benchmarks/">Benchmarks »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 26 February 2026 01:22">Thursday 26 February 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
