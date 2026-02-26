@@ -78,16 +78,36 @@ println(val)  # ≈ 4.0
 
 ### High-Accuracy Interface: `quad_cmpl`
 
-For functions extremely sensitive near endpoints (e.g., $1-x$ or $1+x$), use `quad_cmpl`.
-The function `f` should accept three arguments: `f(x, b-x, x-a)` for interval `[a, b]`.
+Use `quad_cmpl` when your integrand is naturally written in endpoint distances.
+You call it exactly like `quad`:
+
+```julia
+val = quad_cmpl(f, a, b)
+```
+
+The difference is the callback signature. For interval `[a, b]`, `f` must accept:
+`f(x, b_minus_x, x_minus_a)`.
+
+At each quadrature node `x`, the package passes:
+
+- `x`: evaluation point in `[a, b]`
+- `b_minus_x = b - x`: distance to the right endpoint
+- `x_minus_a = x - a`: distance to the left endpoint
+
 For `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
+
+Why this interface exists:
+Tanh-Sinh places many nodes extremely close to endpoints. In that regime, computing `b - x`
+or `x - a` directly from rounded `x` can lose relative precision (subtractive cancellation).
+`quad_cmpl` computes and passes these complements in a numerically stable way, improving robustness for
+endpoint-sensitive formulas such as `log(b-x)`, `1/sqrt((b-x)(x-a))`, or `exp(-1/(b-x))`.
 
 ```julia
 using FastTanhSinhQuadrature
 
-# Integrate f(x) = 1/sqrt(1-x^2) using complementary coordinates
+# Integrate f(x) = 1/sqrt(1-x^2) using passed endpoint distances
 # 1-x^2 = (1-x)(1+x)
-f(x, omx, opx) = 1 / sqrt(omx * opx)
+f(x, b_minus_x, x_minus_a) = 1 / sqrt(b_minus_x * x_minus_a)
 val = quad_cmpl(f, -1.0, 1.0)
 println(val)  # ≈ π ≈ 3.14159...
 ```
