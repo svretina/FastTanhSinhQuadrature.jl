@@ -42,4 +42,13 @@
     @test_throws DimensionMismatch integrate2D((x, y) -> x + y, [0.0, 0.0], [1.0], x, w, h)
     @test_throws DimensionMismatch integrate2D_avx((x, y) -> x + y, [0.0], [1.0, 2.0], x, w, h)
     @test_throws DimensionMismatch integrate2D_avx((x, y) -> x + y, [0.0, 0.0], [1.0], x, w, h)
+
+    @testset "2D split-domain singular family" begin
+        low = SVector(-1.0, -1.0)
+        up = SVector(1.0, 1.0)
+        c = SVector(0.0, 0.0)
+        f_abs2(x, y) = 1 / sqrt(abs(x * y))
+        # Separable exact value: (∫_{-1}^1 |x|^{-1/2} dx)^2 = 4^2 = 16.
+        @test isapprox(quad_split(f_abs2, c, low, up; tol=1e-8, max_levels=8), 16.0, atol=1e-8)
+    end
 end

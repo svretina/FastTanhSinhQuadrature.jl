@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        # Require overall coverage to not drop by more than 1%
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        # Require new code to have at least 50% coverage, 
+        # allowing some uncovered edge cases without failing the build.
+        target: 50% 
+        threshold: 0%
+comment:
+  layout: "header, diff, flags, files"
+  behavior: default

@@ -127,6 +127,9 @@ f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
         F01 = integrate1D(f, -one(T), a, x, w, h)
         F11 = integrate1D(f, a, one(T), x, w, h)
         @test isapprox(F01 + F11, F1, rtol=rtol[T])
+
+        # Test flipped bounds coverage in quad
+        @test quad(f, T(1), T(-1)) ≈ -F1
     end
 
     include("families_1d.jl")

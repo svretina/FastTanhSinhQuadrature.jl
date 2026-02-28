@@ -58,6 +58,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
+          flags: julia-${{ matrix.version }}
   docs:
     name: Documentation
     runs-on: ubuntu-latest
