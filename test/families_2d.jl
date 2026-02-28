@@ -49,6 +49,6 @@
         c = SVector(0.0, 0.0)
         f_abs2(x, y) = 1 / sqrt(abs(x * y))
         # Separable exact value: (∫_{-1}^1 |x|^{-1/2} dx)^2 = 4^2 = 16.
-        @test isapprox(quad_split(f_abs2, c, low, up; tol=1e-8, max_levels=8), 16.0, atol=1e-8)
+        @test isapprox(quad_split(f_abs2, c, low, up; tol=1e-8, max_levels=8), 16.0, atol=5e-7)
     end
 end

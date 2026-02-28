@@ -128,8 +128,8 @@ f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
         F11 = integrate1D(f, a, one(T), x, w, h)
         @test isapprox(F01 + F11, F1, rtol=rtol[T])
 
-        # Test flipped bounds coverage in quad
-        @test quad(f, T(1), T(-1)) ≈ -F1
+        # Flipped bounds should match orientation with type-appropriate tolerance.
+        @test isapprox(quad(f, T(1), T(-1)), -F1, rtol=rtol[T])
     end
 
     include("families_1d.jl")
