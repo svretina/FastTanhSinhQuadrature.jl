@@ -40,6 +40,11 @@ end
     @test isapprox(integrate3D((x, y, z) -> 1.0, SVector(0.0, 0.0, 0.0), SVector(π, π, π), x, w, h), π^3, atol=1e-11)
     @test isapprox(integrate3D_avx((x, y, z) -> 1.0, SVector(0.0, 0.0, 0.0), SVector(π, π, π), x, w, h), π^3, atol=1e-11)
     @test isapprox(integrate3D((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [π, π, π], x, w, h), π^3, atol=1e-11)
+    run_avx_checks() do
+        @test isapprox(integrate3D_avx((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [π, π, π], x, w, h), π^3, atol=1e-11)
+        @test_throws DimensionMismatch integrate3D_avx((x, y, z) -> 1.0, [0.0, 0.0], [1.0, 1.0, 1.0], x, w, h)
+        @test_throws DimensionMismatch integrate3D_avx((x, y, z) -> 1.0, [0.0, 0.0, 0.0], [1.0, 1.0], x, w, h)
+    end
 
     # High-level interfaces should also accept mixed real bound types
     @test isapprox(quad(x -> x, 0.0, π), π^2 / 2, atol=1e-12)
