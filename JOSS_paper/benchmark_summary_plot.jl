@@ -100,7 +100,7 @@ function plot_summary(labels, quad_speedups, avx_speedups)
     fig = Figure(size=(980, 500), fontsize=18, figure_padding=(10, 10, 10, 10))
     ax = Axis(
         fig[1, 1],
-        xlabel="Speedup vs fastest accurate non-FTS baseline",
+        xlabel="Speedup vs fastest accurate competing method",
         ylabel="Benchmark case [baseline]",
         xscale=log10,
         xgridvisible=true,
@@ -118,11 +118,11 @@ function plot_summary(labels, quad_speedups, avx_speedups)
 
     vlines!(ax, [1.0], color=:gray55, linestyle=:dash, linewidth=1.5)
     scatter!(ax, quad_speedups, y_quad, color=:dodgerblue3, marker=:circle, markersize=14,
-        label="FTS quad")
+        label="FastTanhSinh quad")
     scatter!(ax, avx_speedups, y_avx, color=:firebrick3, marker=:rect, markersize=14,
-        label="FTS avx")
+        label="FastTanhSinh avx")
 
-    text!(ax, 1.05, length(labels) + 0.55, text=">1: FTS faster", color=:gray35,
+    text!(ax, 1.05, length(labels) + 0.55, text=">1: package faster", color=:gray35,
         align=(:left, :bottom), fontsize=14)
     xlims!(ax, 0.02, 1.0e5)
     ylims!(ax, 0.5, length(labels) + 0.8)
