@@ -71,7 +71,7 @@ Figure 1 summarizes benchmarks against `FastGaussQuadrature.jl` [@FastGaussQuadr
 
 The results show two distinct usage regimes. The high-level `quad` interface is most compelling for endpoint-singular integrands: in 1D it is about **6.7x** faster than `QuadGK.jl` on $(1-x^2)^{-1/2}$ and about **2.2x** faster on $\log(1-x)$, while in the tested 2D endpoint-singular case it is more than three orders of magnitude faster than the fastest accurate alternative. The SIMD path (`integrate*_avx`) is the main performance-oriented API: it is the fastest accurate method in 7 of the 9 directly comparable benchmarks, and it remains competitive or superior across many singular and smooth tensor-product problems.
 
-These benchmarks also clarify the package's limitations. `FastTanhSinhQuadrature.jl` should be preferred when the integrand has endpoint singularities, when the same quadrature rule can be reused across many evaluations, or when arbitrary precision is required. It is less advantageous for smooth low-dimensional problems where specialized Gauss or Gauss-Kronrod rules already match the integrand well; for example, `FastGaussQuadrature.jl` and `QuadGK.jl` are faster on the smooth 1D polynomial and Runge-function tests, and `Cuba.jl`/`Cubature.jl` can outperform the adaptive `quad` interface on some smooth 3D problems. Interior singularities are likewise not handled automatically and still require domain splitting via `quad_split`.
+These benchmarks also clarify the package's limitations. `FastTanhSinhQuadrature.jl` should be preferred when the integrand has endpoint singularities, when the same quadrature rule can be reused across many evaluations, or when arbitrary precision is required. It is less advantageous for smooth low-dimensional problems where specialized Gauss or Gauss-Kronrod rules already match the integrand well. For example, `FastGaussQuadrature.jl` and `QuadGK.jl` are faster on the smooth 1D polynomial and Runge-function tests, and `Cuba.jl`/`Cubature.jl` can outperform the adaptive `quad` interface on some smooth 3D problems. Interior singularities are likewise not handled automatically and still require domain splitting via `quad_split`.
 
 ![Figure 1. Speedup of `quad` and `integrate*_avx` relative to the fastest accurate competing method on each benchmark problem. The 3D endpoint-singular case is omitted because `FastTanhSinhQuadrature.jl` was the only tested method that satisfied the requested tolerance.](benchmark_summary.svg)
 
@@ -114,6 +114,10 @@ integral = integrate1D_avx(f, 0.0, π, x, w, h)
 Convergence tests for various integrands are shown below. The method exhibits rapid exponential convergence characteristic of the Tanh-Sinh scheme.
 
 ![Convergence of Tanh-Sinh Quadrature compared to other methods.](convergence.svg)
+
+# Future Work
+
+Natural directions for future development include extending the current window-selection strategy to additional exponential and double-exponential quadrature formulas, deriving the corresponding window sizes so that SIMD-friendly execution can be enabled for a broader family of rules, and adding parallel execution paths such as multithreading. Another clear next step is to generalize the current specialized 1D-3D routines to an $n$-dimensional formulation for arbitrary tensor-product dimensions.
 
 # AI usage disclosure
 
