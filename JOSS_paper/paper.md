@@ -115,6 +115,12 @@ Convergence tests for various integrands are shown below. The method exhibits ra
 
 ![Convergence of Tanh-Sinh Quadrature compared to other methods.](convergence.svg)
 
+# Future Work and Contributions
+
+Natural directions for future development include more automatic handling of interior singularities and oscillatory integrands, broader performance tuning across CPU architectures, and expanded benchmark coverage across precisions and problem classes. The current multidimensional routines remain specialized to low-dimensional tensor-product domains, so extending this scope is another natural area for future work.
+
+The package is developed openly on GitHub, and contributions are welcome through issues and pull requests. Particularly useful contributions include new benchmark cases, additional tests and examples, documentation improvements, performance regressions or optimizations, and extensions of the existing `Integrals.jl` interface.
+
 # AI usage disclosure
 
 During the development of this package, the author utilized Gemini (Google) for assistance with documentation, debugging and the generation of the first draft of this paper. The author has reviewed and edited all AI-generated content to ensure accuracy and adherence to the package's coding standards.
