@@ -117,7 +117,7 @@ Convergence tests for various integrands are shown below. The method exhibits ra
 
 # Future Work and Contributions
 
-Natural directions for future development include more automatic handling of interior singularities and oscillatory integrands, broader performance tuning across CPU architectures, and expanded benchmark coverage across precisions and problem classes. The current multidimensional routines remain specialized to low-dimensional tensor-product domains, so extending this scope is another natural area for future work.
+Natural directions for future development include extending the current window-selection strategy to additional exponential and double-exponential quadrature formulas, deriving the corresponding window sizes so that SIMD-friendly execution can be enabled for a broader family of rules, and adding parallel execution paths such as multithreading. Another clear next step is to generalize the current specialized 1D-3D routines to an $n$-dimensional formulation for arbitrary tensor-product dimensions.
 
 The package is developed openly on GitHub, and contributions are welcome through issues and pull requests. Particularly useful contributions include new benchmark cases, additional tests and examples, documentation improvements, performance regressions or optimizations, and extensions of the existing `Integrals.jl` interface.
 
