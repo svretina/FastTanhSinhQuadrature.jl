@@ -1,4 +1,6 @@
-<img src="docs/FastTanhSinh_Logo.svg" alt="FastTanhSinhQuadrature Logo" width="300">
+<p align="center">
+  <img src="docs/FastTanhSinh_Logo.svg" alt="FastTanhSinhQuadrature Logo" width="300">
+</p>
 
 # FastTanhSinhQuadrature.jl
 
@@ -27,7 +29,7 @@ Fast and high-precision numerical integration using **Tanh-Sinh (Double Exponent
 - **Double Exponential Convergence**: Achieve machine precision with few points even for singular integrands.
 - **Adaptive Integration**: Highly optimized adaptive routines for 1D, 2D, and 3D.
 - **Transcendental Caching**: 2D and 3D adaptive routines cache node and weight mappings, reducing transcendental overhead by $O(N^{d-1})$.
-- **Optimal and maximal spacing**: Optimal spacing of nodes and weights for maximum accuracy.
+- **Optimal and maximal spacing**: Optimal and maximal spacing of nodes and weights.
 - **Underflow/Overflow Handling**: Robust handling of underflow/overflow when generating nodes and weights.
 - **Type Stable**: Rigorously tested with `JET.jl` to ensure type stability and zero runtime dispatch.
 
@@ -256,6 +258,12 @@ Methodology:
 - Max evaluations (external adaptive solvers): `200000`
 - Timing: `@belapsed` with interpolation (`samples=3`, `evals=1`)
 
+The plot below summarizes the speedup of the `quad` and `_avx` interfaces relative to the fastest accurate competing method on each benchmark case.
+
+<p align="center">
+  <img src="JOSS_paper/benchmark_summary.svg" alt="Benchmark summary plot" width="850">
+</p>
+
 | Dim | Function | FTS adaptive | FTS quad | FTS avx | QuadGK | HCubature | Cubature h | Cubature p | Cuba Vegas | Cuba Divonne | Cuba Cuhre | FastGauss |
 | :-- | :------- | ----------: | -------: | ------: | -----: | --------: | ---------: | ---------: | ---------: | -----------: | ---------: | --------: |
 | 1D | 1/(1+25x^2) | 4058.0000 | 4126.0000 | 217.0000 | 375.0000 | 1.180e+04 | 1.385e+04 | 1.246e+04 | n/a | n/a | n/a | 97.0000 |
@@ -275,3 +283,14 @@ Full raw results are written by the benchmark script to:
 - `benchmark/results/timings.csv`
 - `benchmark/results/timings_full.md`
 - `benchmark/results/timings_summary.md`
+
+## Contributing
+
+Contributions are welcome through GitHub issues and pull requests. Please include tests or benchmark updates when relevant, especially for changes that affect numerical accuracy or performance.
+
+Particularly useful contributions include:
+- new benchmark cases and reproducible performance reports
+- additional tests for edge cases, precision-specific behavior, and multidimensional interfaces
+- documentation improvements and extra usage examples
+- performance work such as SIMD-oriented optimizations, threading, and architecture-specific tuning
+- extensions aligned with the current roadmap, including additional exponential or double-exponential formulas and more general `n`-dimensional support
