@@ -9,7 +9,7 @@ tags:
 authors:
   - name: Stamatis Vretinaris
     orcid: 0000-0001-7575-813X
-    affiliation: 1
+    affiliation: 1,2,3
 affiliations:
   - name: Institute for Mathematics, Astrophysics and Particle Physics, Radboud University, Heyendaalseweg 135, 6525 AJ Nijmegen, The Netherlands
     index: 1
@@ -67,7 +67,13 @@ Key implementation features include:
 
 ## Performance
 
-Benchmarks against `FastGaussQuadrature.jl` [@FastGaussQuadrature] demonstrate that our SIMD-optimized Tanh-Sinh implementation (`integrate1D_avx`) achieves competitive or superior performance. For singular integrands like $\sqrt{1-x^2}$, we observe speedups of approximately **2.4x**. For generic smooth functions like $e^x$, the solver is approximately **2x** faster than standard Gaussian quadrature.
+Figure 1 summarizes benchmarks against `FastGaussQuadrature.jl` [@FastGaussQuadrature], `QuadGK.jl` [@QuadGK], `HCubature.jl` [@HCubature], `Cubature.jl` [@Cubature], and `Cuba.jl` [@Cuba]. All benchmarks use `rtol = 10^{-6}` and `atol = 10^{-8}`; external adaptive solvers are capped at 200,000 evaluations. For each benchmark case, the plotted speedup is measured relative to the fastest competing method that also met the requested tolerance.
+
+The results show two distinct usage regimes. The high-level `quad` interface is most compelling for endpoint-singular integrands: in 1D it is about **6.7x** faster than `QuadGK.jl` on $(1-x^2)^{-1/2}$ and about **2.2x** faster on $\log(1-x)$, while in the tested 2D endpoint-singular case it is more than three orders of magnitude faster than the fastest accurate alternative. The SIMD path (`integrate*_avx`) is the main performance-oriented API: it is the fastest accurate method in 7 of the 9 directly comparable benchmarks, and it remains competitive or superior across many singular and smooth tensor-product problems.
+
+These benchmarks also clarify the package's limitations. `FastTanhSinhQuadrature.jl` should be preferred when the integrand has endpoint singularities, when the same quadrature rule can be reused across many evaluations, or when arbitrary precision is required. It is less advantageous for smooth low-dimensional problems where specialized Gauss or Gauss-Kronrod rules already match the integrand well; for example, `FastGaussQuadrature.jl` and `QuadGK.jl` are faster on the smooth 1D polynomial and Runge-function tests, and `Cuba.jl`/`Cubature.jl` can outperform the adaptive `quad` interface on some smooth 3D problems. Interior singularities are likewise not handled automatically and still require domain splitting via `quad_split`.
+
+![Figure 1. Speedup of `quad` and `integrate*_avx` relative to the fastest accurate competing method on each benchmark problem. The 3D endpoint-singular case is omitted because `FastTanhSinhQuadrature.jl` was the only tested method that satisfied the requested tolerance.](benchmark_summary.svg)
 
 Detailed performance benchmarks, timing tables, and convergence plots are available in the [software repository](https://github.com/svretina/FastTanhSinhQuadrature.jl).
 
