@@ -9,7 +9,7 @@ tags:
 authors:
   - name: Stamatis Vretinaris
     orcid: 0000-0001-7575-813X
-    affiliation: 1,2,3
+    affiliation: "1,2,3"
 affiliations:
   - name: Institute for Mathematics, Astrophysics and Particle Physics, Radboud University, Heyendaalseweg 135, 6525 AJ Nijmegen, The Netherlands
     index: 1
