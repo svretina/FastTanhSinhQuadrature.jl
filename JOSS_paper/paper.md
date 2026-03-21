@@ -11,12 +11,12 @@ authors:
     orcid: 0000-0001-7575-813X
     affiliation: "1,2,3"
 affiliations:
-  - name: Institute for Mathematics, Astrophysics and Particle Physics, Radboud University, Heyendaalseweg 135, 6525 AJ Nijmegen, The Netherlands
-    index: 1
-  - name: Albert-Einstein-Institut, Max-Planck-Institut für Gravitationsphysik, Callinstraße 38, 30167 Hannover, Germany
-    index: 2
-  - name: Leibniz Universität Hannover, 30167 Hannover, Germany
-    index: 3
+  - index: 1
+    name: Institute for Mathematics, Astrophysics and Particle Physics, Radboud University, Heyendaalseweg 135, 6525 AJ Nijmegen, The Netherlands
+  - index: 2
+    name: Albert-Einstein-Institut, Max-Planck-Institut für Gravitationsphysik, Callinstraße 38, 30167 Hannover, Germany
+  - index: 3
+    name: Leibniz Universität Hannover, 30167 Hannover, Germany
 date: 26 January 2026
 bibliography: paper.bib
 ---
