@@ -59,7 +59,7 @@ Key implementation features include:
 *   **Window Selection**: Uses the method of @Vanherck2020 to pre-determine integration bounds, enabling branch-free loops.
 *   **SIMD Optimization**: Leverages `LoopVectorization.jl` to vectorize evaluation loops, yielding 2-3x speedups over scalar codes.
 *   **Static Allocation**: For moderate node counts, weights and nodes can be stored in `StaticArrays`, eliminating heap allocations.
-*   **Arbitrary Precision**: Supports generic number types (`BigFloat`, `Double64`) by dynamically deriving quadrature parameters from machine epsilon.
+*   **Arbitrary Precision**: Supports generic number types (`BigFloat`, `Double64`, `Float64x2`) by dynamically deriving quadrature parameters from machine epsilon.
 
 # Research Impact
 
@@ -67,7 +67,7 @@ Key implementation features include:
 
 ## Performance
 
-Figure 1 summarizes benchmarks against `FastGaussQuadrature.jl` [@FastGaussQuadrature], `QuadGK.jl` [@QuadGK], `HCubature.jl` [@HCubature], `Cubature.jl` [@Cubature], and `Cuba.jl` [@Cuba]. All benchmarks use `rtol = 10^{-6}` and `atol = 10^{-8}`; external adaptive solvers are capped at 200,000 evaluations. For each benchmark case, the plotted speedup is measured relative to the fastest competing method that also met the requested tolerance.
+Figure 1 summarizes benchmarks against `FastGaussQuadrature.jl` [@FastGaussQuadrature], `QuadGK.jl` [@QuadGK], `HCubature.jl` [@HCubature], `Cubature.jl` [@Cubature], and `Cuba.jl` [@Cuba; @Hahn2015]. All benchmarks use `rtol = 10^{-6}` and `atol = 10^{-8}`; external adaptive solvers are capped at 200,000 evaluations. For each benchmark case, the plotted speedup is measured relative to the fastest competing method that also met the requested tolerance.
 
 The results show two distinct usage regimes. The high-level `quad` interface is most compelling for endpoint-singular integrands: in 1D it is about **6.7x** faster than `QuadGK.jl` on $(1-x^2)^{-1/2}$ and about **2.2x** faster on $\log(1-x)$, while in the tested 2D endpoint-singular case it is more than three orders of magnitude faster than the fastest accurate alternative. The SIMD path (`integrate*_avx`) is the main performance-oriented API: it is the fastest accurate method in 7 of the 9 directly comparable benchmarks, and it remains competitive or superior across many singular and smooth tensor-product problems.
 
@@ -75,16 +75,7 @@ These benchmarks also clarify the package's limitations. `FastTanhSinhQuadrature
 
 ![Figure 1. Speedup of `quad` and `integrate*_avx` relative to the fastest accurate competing method on each benchmark problem. The 3D endpoint-singular case is omitted because `FastTanhSinhQuadrature.jl` was the only tested method that satisfied the requested tolerance.](benchmark_summary.svg)
 
-Detailed performance benchmarks, timing tables, and convergence plots are available in the [software repository](https://github.com/svretina/FastTanhSinhQuadrature.jl).
-
 # Usage
-
-## Installation
-
-```julia
-using Pkg
-Pkg.add("FastTanhSinhQuadrature")
-```
 
 ## Basic Integration
 

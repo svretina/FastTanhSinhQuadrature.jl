@@ -8,3 +8,7 @@ Manifest.toml
 /test/Manifest.toml
 /docs/Manifest.toml
 /benchmark/Manifest.toml
+
+# JOSS build artifacts
+/JOSS_paper/paper.pdf
+/JOSS_paper/jats/
