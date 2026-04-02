@@ -28,6 +28,9 @@ using FastTanhSinhQuadrature
 # High-level adaptive integration
 val = quad(exp, 0.0, 1.0)  # ≈ e - 1
 
+# Match the quadrature type to your bounds
+val32 = quad(exp, 0.0f0, 1.0f0)  # Float32
+
 # Handle singularities
 f(x) = 1 / sqrt(abs(x))
 val = quad_split(f, 0.0, -1.0, 1.0)  # Split at singularity
@@ -51,7 +54,7 @@ val_static = integrate1D_avx(sin, x_static, w_static, h_static)
 - Use `_avx` variants for `Float32`/`Float64` if your integrand works with `LoopVectorization`.
 - Use `quad_split` for interior singularities and `quad_cmpl` for endpoint-sensitive formulations.
 
-Pre-computed and high-level interfaces accept mixed real bounds (`Int`, `Float64`, `π`, etc.) and convert them to the numerical type used by the quadrature nodes.
+Pre-computed and high-level interfaces accept mixed real bounds (`Int`, `Float64`, `π`, etc.) and convert them to the numerical type used by the quadrature nodes. For concrete floating-point inputs such as `Float32`, the quadrature stays in that same type and returns that same type.
 
 ## Key Features
 

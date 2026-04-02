@@ -89,8 +89,7 @@ Calculate the integral of `f` over `[low, up]` using pre-computed nodes `x`, wei
 function integrate1D(f::S, low::T, up::T, x::X,
     w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
     @inbounds begin
-        Δx = 0.5(up - low)
-        x₀ = 0.5(up + low)
+        Δx, x₀ = _midpoint_radius(low, up)
         s = T(π) / 2 * f(x₀)
         for i in eachindex(x)
             xp = x₀ + Δx * x[i]
@@ -132,8 +131,7 @@ end
 SIMD-accelerated 1D integration over `[low, up]` Using `LoopVectorization`.
 """
 function integrate1D_avx(f::S, low::T, up::T, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
-    Δx = 0.5(up - low)
-    x₀ = 0.5(up + low)
+    Δx, x₀ = _midpoint_radius(low, up)
     s = T(π) / 2 * f(x₀)
     @turbo for i in 1:length(x)
         Δxxi = Δx * x[i]

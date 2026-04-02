@@ -17,6 +17,8 @@
 using FastTanhSinhQuadrature
 using StaticArrays
 using DoubleFloats
+using MultiFloats
+using Quadmath
 using Test
 using Random
 using LinearAlgebra
@@ -40,6 +42,9 @@ function run_avx_checks(f::Function)
         f()
     end
 end
+
+inferred_return_type(f::Function) = only(code_typed(f, Tuple{}))[2]
+typed_call_return_type(f, argtypes::Type{<:Tuple}) = only(code_typed(f, argtypes))[2]
 
 @inline integral_monomial_1d(low::T, up::T, p::Int) where {T<:Real} =
     (up^(p + 1) - low^(p + 1)) / T(p + 1)
@@ -177,6 +182,139 @@ f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
         if Double64 in Types
             val_d = quad(f, Double64(0.0), Double64(1.0); tol=1e-15)
             @test isapprox(val_d, val_true, atol=1e-15)
+        end
+    end
+
+    @testset "Type preservation and inference" begin
+        x32, w32, h32 = tanhsinh(Float32, 8)
+        low2_32 = SVector(0.0f0, 0.0f0)
+        up2_32 = SVector(1.0f0, 1.0f0)
+        low3_32 = SVector(0.0f0, 0.0f0, 0.0f0)
+        up3_32 = SVector(1.0f0, 1.0f0, 1.0f0)
+
+        f1(x) = exp(x)
+        f2(x, y) = x + y
+        f3(x, y, z) = x + y + z
+        f_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
+        f_split(x) = inv(sqrt(abs(x)))
+
+        @test typed_call_return_type(integrate1D, Tuple{Type{Float32}, typeof(f1), Int}) === Float32
+        @test typed_call_return_type(FastTanhSinhQuadrature.integrate1D_cmpl, Tuple{Type{Float32}, typeof(f_cmpl), Int}) === Float32
+        @test inferred_return_type(() -> integrate1D(f1, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate1D(f1, 0.0f0, 1.0f0, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate1D_avx(f1, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate1D_avx(f1, 0.0f0, 1.0f0, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> adaptive_integrate_1D(Float32, f1, 0.0f0, 1.0f0; tol=1f-5, max_levels=0)) === Float32
+        @test inferred_return_type(() -> adaptive_integrate_1D_cmpl(Float32, f_cmpl, -1.0f0, 1.0f0; tol=1f-5, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad(f1, 0.0f0, 1.0f0; max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad(f1, 0.0f0, 1.0f0; tol=1f-5, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_cmpl(f_cmpl, -1.0f0, 1.0f0; max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_cmpl(f_cmpl, -1.0f0, 1.0f0; tol=1f-5, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_split(f_split, 0.0f0, -1.0f0, 1.0f0; max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_split(f_split, 0.0f0, -1.0f0, 1.0f0; tol=1f-4, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_split(f_split, 0.0f0; tol=1f-4, max_levels=0)) === Float32
+
+        @test inferred_return_type(() -> integrate2D(f2, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate2D(f2, low2_32, up2_32, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate2D(f2, [0.0f0, 0.0f0], [1.0f0, 1.0f0], x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate2D_avx(f2, low2_32, up2_32, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate2D_avx(f2, [0.0f0, 0.0f0], [1.0f0, 1.0f0], x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> adaptive_integrate_2D(Float32, f2, low2_32, up2_32; tol=1f-4, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad(f2, low2_32, up2_32; tol=1f-4, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad(f2, [0.0f0, 0.0f0], [1.0f0, 1.0f0]; tol=1f-4, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_split(f2, SVector(0.5f0, 0.5f0), low2_32, up2_32; tol=1f-4, max_levels=0)) === Float32
+
+        @test inferred_return_type(() -> integrate3D(f3, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate3D(f3, low3_32, up3_32, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate3D(f3, [0.0f0, 0.0f0, 0.0f0], [1.0f0, 1.0f0, 1.0f0], x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate3D_avx(f3, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate3D_avx(f3, low3_32, up3_32, x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> integrate3D_avx(f3, [0.0f0, 0.0f0, 0.0f0], [1.0f0, 1.0f0, 1.0f0], x32, w32, h32)) === Float32
+        @test inferred_return_type(() -> adaptive_integrate_3D(Float32, f3, low3_32, up3_32; tol=1f-3, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad(f3, low3_32, up3_32; tol=1f-3, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad(f3, [0.0f0, 0.0f0, 0.0f0], [1.0f0, 1.0f0, 1.0f0]; tol=1f-3, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_split(f3, SVector(0.5f0, 0.5f0, 0.5f0), low3_32, up3_32; tol=1f-3, max_levels=0)) === Float32
+    end
+
+    @testset "MultiFloat type preservation and inference" begin
+        f1(x) = exp(x)
+        f2(x, y) = x + y
+        f3(x, y, z) = x + y + z
+        f_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
+        f_split(x) = inv(sqrt(abs(x)))
+
+        @testset "T=$T" for T in (Float32x2, Float64x2)
+            x, w, h = tanhsinh(T, 8)
+            z = zero(T)
+            o = one(T)
+            low2 = SVector(zero(T), zero(T))
+            up2 = SVector(one(T), one(T))
+            low3 = SVector(zero(T), zero(T), zero(T))
+            up3 = SVector(one(T), one(T), one(T))
+            tol1 = T <: Float32x2 ? T(1e-4) : T(1e-6)
+            tol2 = T <: Float32x2 ? T(1e-3) : T(1e-5)
+
+            @test eltype(x) === T
+            @test eltype(w) === T
+            @test h isa T
+
+            @test typed_call_return_type(integrate1D, Tuple{Type{T}, typeof(f1), Int}) === T
+            @test inferred_return_type(() -> integrate1D(f1, x, w, h)) === T
+            @test inferred_return_type(() -> integrate1D(f1, z, o, x, w, h)) === T
+            @test inferred_return_type(() -> adaptive_integrate_1D(typeof(z), f1, z, o; tol=tol1, max_levels=0)) === T
+            @test inferred_return_type(() -> quad(f1, z, o; max_levels=0)) === T
+            @test inferred_return_type(() -> quad(f1, z, o; tol=tol1, max_levels=0)) === T
+            @test inferred_return_type(() -> quad_cmpl(f_cmpl, -o, o; tol=tol1, max_levels=0)) === T
+            @test inferred_return_type(() -> quad_split(f_split, z, -o, o; tol=tol1, max_levels=0)) === T
+
+            @test inferred_return_type(() -> integrate2D(f2, low2, up2, x, w, h)) === T
+            @test inferred_return_type(() -> adaptive_integrate_2D(typeof(z), f2, low2, up2; tol=tol1, max_levels=0)) === T
+            @test inferred_return_type(() -> quad(f2, low2, up2; tol=tol1, max_levels=0)) === T
+
+            @test inferred_return_type(() -> integrate3D(f3, low3, up3, x, w, h)) === T
+            @test inferred_return_type(() -> adaptive_integrate_3D(typeof(z), f3, low3, up3; tol=tol2, max_levels=0)) === T
+            @test inferred_return_type(() -> quad(f3, low3, up3; tol=tol2, max_levels=0)) === T
+        end
+    end
+
+    @testset "Extended precision type preservation and inference" begin
+        f1(x) = exp(x)
+        f2(x, y) = x + y
+        f3(x, y, z) = x + y + z
+        f_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
+        f_split(x) = inv(sqrt(abs(x)))
+
+        @testset "T=$T" for T in (BigFloat, Double64, Float128)
+            x, w, h = tanhsinh(T, 8)
+            z = zero(T)
+            o = one(T)
+            low2 = SVector(zero(T), zero(T))
+            up2 = SVector(one(T), one(T))
+            low3 = SVector(zero(T), zero(T), zero(T))
+            up3 = SVector(one(T), one(T), one(T))
+            tol1 = T === BigFloat ? BigFloat("1e-20") : T(1e-10)
+            tol2 = T === BigFloat ? BigFloat("1e-16") : T(1e-8)
+
+            @test eltype(x) === T
+            @test eltype(w) === T
+            @test h isa T
+
+            @test typed_call_return_type(integrate1D, Tuple{Type{T}, typeof(f1), Int}) === T
+            @test inferred_return_type(() -> integrate1D(f1, x, w, h)) === T
+            @test inferred_return_type(() -> integrate1D(f1, z, o, x, w, h)) === T
+            @test inferred_return_type(() -> adaptive_integrate_1D(typeof(z), f1, z, o; tol=tol1, max_levels=0)) === T
+            @test inferred_return_type(() -> quad(f1, z, o; max_levels=0)) === T
+            @test inferred_return_type(() -> quad(f1, z, o; tol=tol1, max_levels=0)) === T
+            @test inferred_return_type(() -> quad_cmpl(f_cmpl, -o, o; tol=tol1, max_levels=0)) === T
+            @test inferred_return_type(() -> quad_split(f_split, z, -o, o; tol=tol1, max_levels=0)) === T
+
+            @test inferred_return_type(() -> integrate2D(f2, low2, up2, x, w, h)) === T
+            @test inferred_return_type(() -> adaptive_integrate_2D(typeof(z), f2, low2, up2; tol=tol1, max_levels=0)) === T
+            @test inferred_return_type(() -> quad(f2, low2, up2; tol=tol1, max_levels=0)) === T
+
+            @test inferred_return_type(() -> integrate3D(f3, low3, up3, x, w, h)) === T
+            @test inferred_return_type(() -> adaptive_integrate_3D(typeof(z), f3, low3, up3; tol=tol2, max_levels=0)) === T
+            @test inferred_return_type(() -> quad(f3, low3, up3; tol=tol2, max_levels=0)) === T
         end
     end
 

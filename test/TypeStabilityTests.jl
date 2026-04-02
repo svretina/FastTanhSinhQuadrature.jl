@@ -16,12 +16,16 @@
 
 using FastTanhSinhQuadrature
 using JET
+using MultiFloats
+using Quadmath
 using Test
 using StaticArrays
 
 # Test Inputs (Global Scope)
 const T_val = Float64
 const x_vec, w_vec, h_val = tanhsinh(T_val, Val(10))
+const T32_val = Float32
+const x32_vec, w32_vec, h32_val = tanhsinh(T32_val, Val(10))
 
 # 1D Bounds
 const low1d_val, up1d_val = -1.0, 1.0
@@ -31,11 +35,16 @@ const low2d_val = SVector(-1.0, -1.0)
 const up2d_val = SVector(1.0, 1.0)
 const low3d_val = SVector(-1.0, -1.0, -1.0)
 const up3d_val = SVector(1.0, 1.0, 1.0)
+const low2d32_val = SVector(-1.0f0, -1.0f0)
+const up2d32_val = SVector(1.0f0, 1.0f0)
+const low3d32_val = SVector(-1.0f0, -1.0f0, -1.0f0)
+const up3d32_val = SVector(1.0f0, 1.0f0, 1.0f0)
 
 # Simple polynomial functions
 func1(x) = x^2
 func2(x, y) = x * y
 func3(x, y, z) = x * y * z
+func_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
 
 @testset "Type Stability" begin
     # JET 0.9 uses `target_defined_modules`, while JET 0.11 uses `target_modules`.
@@ -62,62 +71,194 @@ func3(x, y, z) = x * y * z
     check_opt(tanhsinh, (Type{Float64}, Val{10}))
     check_call(tanhsinh, (Type{Float64}, Val{10}))
 
+    check_opt(tanhsinh, (Type{Float32x2}, Int))
+    check_call(tanhsinh, (Type{Float32x2}, Int))
+
+    check_opt(tanhsinh, (Type{Float64x2}, Int))
+    check_call(tanhsinh, (Type{Float64x2}, Int))
+
+    check_opt(tanhsinh, (Type{BigFloat}, Int))
+    check_call(tanhsinh, (Type{BigFloat}, Int))
+
+    check_opt(tanhsinh, (Type{Double64}, Int))
+    check_call(tanhsinh, (Type{Double64}, Int))
+
+    check_opt(tanhsinh, (Type{Float128}, Int))
+    check_call(tanhsinh, (Type{Float128}, Int))
+
     # --- Integrate 1D ---
     check_opt(integrate1D, (typeof(func1), Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate1D, (typeof(func1), Vector{Float64}, Vector{Float64}, Float64))
 
+    check_opt(integrate1D, (typeof(func1), Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate1D, (typeof(func1), Vector{Float32}, Vector{Float32}, Float32))
+
     check_opt(integrate1D, (typeof(func1), Float64, Float64, Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate1D, (typeof(func1), Float64, Float64, Vector{Float64}, Vector{Float64}, Float64))
+
+    check_opt(integrate1D, (typeof(func1), Float32, Float32, Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate1D, (typeof(func1), Float32, Float32, Vector{Float32}, Vector{Float32}, Float32))
+
+    check_opt(integrate1D, (typeof(func1), Float32x2, Float32x2, Vector{Float32x2}, Vector{Float32x2}, Float32x2))
+    check_call(integrate1D, (typeof(func1), Float32x2, Float32x2, Vector{Float32x2}, Vector{Float32x2}, Float32x2))
+
+    check_opt(integrate1D, (typeof(func1), Float64x2, Float64x2, Vector{Float64x2}, Vector{Float64x2}, Float64x2))
+    check_call(integrate1D, (typeof(func1), Float64x2, Float64x2, Vector{Float64x2}, Vector{Float64x2}, Float64x2))
+
+    check_opt(integrate1D, (typeof(func1), BigFloat, BigFloat, Vector{BigFloat}, Vector{BigFloat}, BigFloat))
+    check_call(integrate1D, (typeof(func1), BigFloat, BigFloat, Vector{BigFloat}, Vector{BigFloat}, BigFloat))
+
+    check_opt(integrate1D, (typeof(func1), Double64, Double64, Vector{Double64}, Vector{Double64}, Double64))
+    check_call(integrate1D, (typeof(func1), Double64, Double64, Vector{Double64}, Vector{Double64}, Double64))
+
+    check_opt(integrate1D, (typeof(func1), Float128, Float128, Vector{Float128}, Vector{Float128}, Float128))
+    check_call(integrate1D, (typeof(func1), Float128, Float128, Vector{Float128}, Vector{Float128}, Float128))
 
     # --- Integrate 1D AVX ---
     check_opt(integrate1D_avx, (typeof(func1), Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate1D_avx, (typeof(func1), Vector{Float64}, Vector{Float64}, Float64))
 
+    check_opt(integrate1D_avx, (typeof(func1), Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate1D_avx, (typeof(func1), Vector{Float32}, Vector{Float32}, Float32))
+
     check_opt(integrate1D_avx, (typeof(func1), Float64, Float64, Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate1D_avx, (typeof(func1), Float64, Float64, Vector{Float64}, Vector{Float64}, Float64))
+
+    check_opt(integrate1D_avx, (typeof(func1), Float32, Float32, Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate1D_avx, (typeof(func1), Float32, Float32, Vector{Float32}, Vector{Float32}, Float32))
 
     # --- Integrate 2D ---
     check_opt(integrate2D, (typeof(func2), Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate2D, (typeof(func2), Vector{Float64}, Vector{Float64}, Float64))
 
+    check_opt(integrate2D, (typeof(func2), Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate2D, (typeof(func2), Vector{Float32}, Vector{Float32}, Float32))
+
     check_opt(integrate2D, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}, Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate2D, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}, Vector{Float64}, Vector{Float64}, Float64))
+
+    check_opt(integrate2D, (typeof(func2), SVector{2,Float32}, SVector{2,Float32}, Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate2D, (typeof(func2), SVector{2,Float32}, SVector{2,Float32}, Vector{Float32}, Vector{Float32}, Float32))
 
     # --- Integrate 2D AVX ---
     check_opt(integrate2D_avx, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}, Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate2D_avx, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}, Vector{Float64}, Vector{Float64}, Float64))
 
+    check_opt(integrate2D_avx, (typeof(func2), SVector{2,Float32}, SVector{2,Float32}, Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate2D_avx, (typeof(func2), SVector{2,Float32}, SVector{2,Float32}, Vector{Float32}, Vector{Float32}, Float32))
+
     # --- Integrate 3D ---
     check_opt(integrate3D, (typeof(func3), Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate3D, (typeof(func3), Vector{Float64}, Vector{Float64}, Float64))
 
+    check_opt(integrate3D, (typeof(func3), Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate3D, (typeof(func3), Vector{Float32}, Vector{Float32}, Float32))
+
     check_opt(integrate3D, (typeof(func3), SVector{3,Float64}, SVector{3,Float64}, Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate3D, (typeof(func3), SVector{3,Float64}, SVector{3,Float64}, Vector{Float64}, Vector{Float64}, Float64))
+
+    check_opt(integrate3D, (typeof(func3), SVector{3,Float32}, SVector{3,Float32}, Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate3D, (typeof(func3), SVector{3,Float32}, SVector{3,Float32}, Vector{Float32}, Vector{Float32}, Float32))
 
     # --- Integrate 3D AVX ---
     check_opt(integrate3D_avx, (typeof(func3), Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate3D_avx, (typeof(func3), Vector{Float64}, Vector{Float64}, Float64))
 
+    check_opt(integrate3D_avx, (typeof(func3), Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate3D_avx, (typeof(func3), Vector{Float32}, Vector{Float32}, Float32))
+
     check_opt(integrate3D_avx, (typeof(func3), SVector{3,Float64}, SVector{3,Float64}, Vector{Float64}, Vector{Float64}, Float64))
     check_call(integrate3D_avx, (typeof(func3), SVector{3,Float64}, SVector{3,Float64}, Vector{Float64}, Vector{Float64}, Float64))
+
+    check_opt(integrate3D_avx, (typeof(func3), SVector{3,Float32}, SVector{3,Float32}, Vector{Float32}, Vector{Float32}, Float32))
+    check_call(integrate3D_avx, (typeof(func3), SVector{3,Float32}, SVector{3,Float32}, Vector{Float32}, Vector{Float32}, Float32))
 
     # --- Adaptive Integration ---
     check_opt(adaptive_integrate_1D, (Type{Float64}, typeof(func1), Float64, Float64))
     check_call(adaptive_integrate_1D, (Type{Float64}, typeof(func1), Float64, Float64))
 
+    check_opt(adaptive_integrate_1D, (Type{Float32}, typeof(func1), Float32, Float32))
+    check_call(adaptive_integrate_1D, (Type{Float32}, typeof(func1), Float32, Float32))
+
+    check_opt(adaptive_integrate_1D, (Type{Float32x2}, typeof(func1), Float32x2, Float32x2))
+    check_call(adaptive_integrate_1D, (Type{Float32x2}, typeof(func1), Float32x2, Float32x2))
+
+    check_opt(adaptive_integrate_1D, (Type{Float64x2}, typeof(func1), Float64x2, Float64x2))
+    check_call(adaptive_integrate_1D, (Type{Float64x2}, typeof(func1), Float64x2, Float64x2))
+
+    check_opt(adaptive_integrate_1D, (Type{BigFloat}, typeof(func1), BigFloat, BigFloat))
+    check_call(adaptive_integrate_1D, (Type{BigFloat}, typeof(func1), BigFloat, BigFloat))
+
+    check_opt(adaptive_integrate_1D, (Type{Double64}, typeof(func1), Double64, Double64))
+    check_call(adaptive_integrate_1D, (Type{Double64}, typeof(func1), Double64, Double64))
+
+    check_opt(adaptive_integrate_1D, (Type{Float128}, typeof(func1), Float128, Float128))
+    check_call(adaptive_integrate_1D, (Type{Float128}, typeof(func1), Float128, Float128))
+
     check_opt(adaptive_integrate_2D, (Type{Float64}, typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
     check_call(adaptive_integrate_2D, (Type{Float64}, typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
 
+    check_opt(adaptive_integrate_2D, (Type{Float32}, typeof(func2), SVector{2,Float32}, SVector{2,Float32}))
+    check_call(adaptive_integrate_2D, (Type{Float32}, typeof(func2), SVector{2,Float32}, SVector{2,Float32}))
+
+    check_opt(adaptive_integrate_2D, (Type{Float32x2}, typeof(func2), SVector{2,Float32x2}, SVector{2,Float32x2}))
+    check_call(adaptive_integrate_2D, (Type{Float32x2}, typeof(func2), SVector{2,Float32x2}, SVector{2,Float32x2}))
+
+    check_opt(adaptive_integrate_2D, (Type{BigFloat}, typeof(func2), SVector{2,BigFloat}, SVector{2,BigFloat}))
+    check_call(adaptive_integrate_2D, (Type{BigFloat}, typeof(func2), SVector{2,BigFloat}, SVector{2,BigFloat}))
+
     check_opt(adaptive_integrate_3D, (Type{Float64}, typeof(func3), SVector{3,Float64}, SVector{3,Float64}))
     check_call(adaptive_integrate_3D, (Type{Float64}, typeof(func3), SVector{3,Float64}, SVector{3,Float64}))
+
+    check_opt(adaptive_integrate_3D, (Type{Float32}, typeof(func3), SVector{3,Float32}, SVector{3,Float32}))
+    check_call(adaptive_integrate_3D, (Type{Float32}, typeof(func3), SVector{3,Float32}, SVector{3,Float32}))
+
+    check_opt(adaptive_integrate_3D, (Type{Float64x2}, typeof(func3), SVector{3,Float64x2}, SVector{3,Float64x2}))
+    check_call(adaptive_integrate_3D, (Type{Float64x2}, typeof(func3), SVector{3,Float64x2}, SVector{3,Float64x2}))
+
+    check_opt(adaptive_integrate_3D, (Type{Double64}, typeof(func3), SVector{3,Double64}, SVector{3,Double64}))
+    check_call(adaptive_integrate_3D, (Type{Double64}, typeof(func3), SVector{3,Double64}, SVector{3,Double64}))
+
+    check_opt(adaptive_integrate_3D, (Type{Float128}, typeof(func3), SVector{3,Float128}, SVector{3,Float128}))
+    check_call(adaptive_integrate_3D, (Type{Float128}, typeof(func3), SVector{3,Float128}, SVector{3,Float128}))
+
+    check_opt(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(func_cmpl), Float32, Float32))
+    check_call(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(func_cmpl), Float32, Float32))
 
     # --- Quad Interface (1D) ---
     check_opt(quad, (typeof(func1), Float64, Float64))
     check_call(quad, (typeof(func1), Float64, Float64))
 
+    check_opt(quad, (typeof(func1), Float32, Float32))
+    check_call(quad, (typeof(func1), Float32, Float32))
+
+    check_opt(quad, (typeof(func1), Float32x2, Float32x2))
+    check_call(quad, (typeof(func1), Float32x2, Float32x2))
+
+    check_opt(quad, (typeof(func1), Float64x2, Float64x2))
+    check_call(quad, (typeof(func1), Float64x2, Float64x2))
+
+    check_opt(quad, (typeof(func1), BigFloat, BigFloat))
+    check_call(quad, (typeof(func1), BigFloat, BigFloat))
+
+    check_opt(quad, (typeof(func1), Double64, Double64))
+    check_call(quad, (typeof(func1), Double64, Double64))
+
+    check_opt(quad, (typeof(func1), Float128, Float128))
+    check_call(quad, (typeof(func1), Float128, Float128))
+
     # --- Quad Interface (2D) ---
     check_opt(quad, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
     check_call(quad, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
+
+    check_opt(quad, (typeof(func2), SVector{2,Float32}, SVector{2,Float32}))
+    check_call(quad, (typeof(func2), SVector{2,Float32}, SVector{2,Float32}))
+
+    check_opt(quad, (typeof(func2), SVector{2,Float32x2}, SVector{2,Float32x2}))
+    check_call(quad, (typeof(func2), SVector{2,Float32x2}, SVector{2,Float32x2}))
+
+    check_opt(quad, (typeof(func2), SVector{2,BigFloat}, SVector{2,BigFloat}))
+    check_call(quad, (typeof(func2), SVector{2,BigFloat}, SVector{2,BigFloat}))
 
     # Generic function for dynamic dispatch testing (accepts 2 or 3 args)
     # JET analyzes all branches of `quad(..., Vector, Vector)`, including 2D and 3D.
@@ -128,15 +269,67 @@ func3(x, y, z) = x * y * z
     # This allows checking that `quad` handles Vectors without immediate errors,
     # and that the branching logic is analyzed. We use `func_any` to satisfy both 2D and 3D branches.
     check_call(quad, (typeof(func_any), Vector{Float64}, Vector{Float64}))
+    check_call(quad, (typeof(func_any), Vector{Float32}, Vector{Float32}))
 
     # --- Quad Interface (3D) ---
     check_opt(quad, (typeof(func3), SVector{3,Float64}, SVector{3,Float64}))
     check_call(quad, (typeof(func3), SVector{3,Float64}, SVector{3,Float64}))
 
+    check_opt(quad, (typeof(func3), SVector{3,Float32}, SVector{3,Float32}))
+    check_call(quad, (typeof(func3), SVector{3,Float32}, SVector{3,Float32}))
+
+    check_opt(quad, (typeof(func3), SVector{3,Float64x2}, SVector{3,Float64x2}))
+    check_call(quad, (typeof(func3), SVector{3,Float64x2}, SVector{3,Float64x2}))
+
+    check_opt(quad, (typeof(func3), SVector{3,Double64}, SVector{3,Double64}))
+    check_call(quad, (typeof(func3), SVector{3,Double64}, SVector{3,Double64}))
+
+    check_opt(quad, (typeof(func3), SVector{3,Float128}, SVector{3,Float128}))
+    check_call(quad, (typeof(func3), SVector{3,Float128}, SVector{3,Float128}))
+
     # --- Quad Split ---
     check_opt(quad_split, (typeof(func1), Float64, Float64, Float64))
     check_call(quad_split, (typeof(func1), Float64, Float64, Float64))
 
+    check_opt(quad_split, (typeof(func1), Float32, Float32, Float32))
+    check_call(quad_split, (typeof(func1), Float32, Float32, Float32))
+
+    check_opt(quad_split, (typeof(func1), Float32x2, Float32x2, Float32x2))
+    check_call(quad_split, (typeof(func1), Float32x2, Float32x2, Float32x2))
+
+    check_opt(quad_split, (typeof(func1), BigFloat, BigFloat, BigFloat))
+    check_call(quad_split, (typeof(func1), BigFloat, BigFloat, BigFloat))
+
+    check_opt(quad_split, (typeof(func1), Double64, Double64, Double64))
+    check_call(quad_split, (typeof(func1), Double64, Double64, Double64))
+
+    check_opt(quad_split, (typeof(func1), Float128, Float128, Float128))
+    check_call(quad_split, (typeof(func1), Float128, Float128, Float128))
+
     check_opt(quad_split, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}, SVector{2,Float64}))
     check_call(quad_split, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}, SVector{2,Float64}))
+
+    check_opt(quad_split, (typeof(func2), SVector{2,Float32}, SVector{2,Float32}, SVector{2,Float32}))
+    check_call(quad_split, (typeof(func2), SVector{2,Float32}, SVector{2,Float32}, SVector{2,Float32}))
+
+    check_opt(quad_split, (typeof(func3), SVector{3,Float32}, SVector{3,Float32}, SVector{3,Float32}))
+    check_call(quad_split, (typeof(func3), SVector{3,Float32}, SVector{3,Float32}, SVector{3,Float32}))
+
+    check_opt(quad_cmpl, (typeof(func_cmpl), Float32, Float32))
+    check_call(quad_cmpl, (typeof(func_cmpl), Float32, Float32))
+
+    check_opt(quad_cmpl, (typeof(func_cmpl), Float32x2, Float32x2))
+    check_call(quad_cmpl, (typeof(func_cmpl), Float32x2, Float32x2))
+
+    check_opt(quad_cmpl, (typeof(func_cmpl), Float64x2, Float64x2))
+    check_call(quad_cmpl, (typeof(func_cmpl), Float64x2, Float64x2))
+
+    check_opt(quad_cmpl, (typeof(func_cmpl), BigFloat, BigFloat))
+    check_call(quad_cmpl, (typeof(func_cmpl), BigFloat, BigFloat))
+
+    check_opt(quad_cmpl, (typeof(func_cmpl), Double64, Double64))
+    check_call(quad_cmpl, (typeof(func_cmpl), Double64, Double64))
+
+    check_opt(quad_cmpl, (typeof(func_cmpl), Float128, Float128))
+    check_call(quad_cmpl, (typeof(func_cmpl), Float128, Float128))
 end

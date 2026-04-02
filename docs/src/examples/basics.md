@@ -61,6 +61,17 @@ val = integrate1D(f, Double64(0), Double64(1), x, w, h)
 println("Pre-computed result: $val")
 ```
 
+If you want single precision instead, pass `Float32` bounds to `quad` or generate `Float32` nodes explicitly:
+
+```julia
+val32 = quad(exp, 0.0f0, 1.0f0)
+println(typeof(val32))  # Float32
+
+x32, w32, h32 = tanhsinh(Float32, 60)
+val32_fixed = integrate1D(exp, 0.0f0, 1.0f0, x32, w32, h32)
+println(typeof(val32_fixed))  # Float32
+```
+
 ## 4. Dealing with Singularities
 
 Tanh-Sinh quadrature excels at handling endpoint singularities automatically.

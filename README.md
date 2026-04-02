@@ -68,6 +68,10 @@ using FastTanhSinhQuadrature
 val = quad(exp, 0.0, 1.0)
 println(val)  # ≈ e - 1 ≈ 1.7182818...
 
+# The result type follows the floating-point bound type
+val32 = quad(exp, 0.0f0, 1.0f0)
+println(typeof(val32))  # Float32
+
 # Integrate over default domain [-1, 1]
 val = quad(x -> 3x^2)
 println(val)  # ≈ 2.0
@@ -168,6 +172,8 @@ setprecision(BigFloat, 256)
 x, w, h = tanhsinh(BigFloat, 120)
 val = integrate1D(exp, x, w, h)
 ```
+
+If you want single precision rather than higher precision, pass `Float32` bounds to `quad` or generate `Float32` nodes with `tanhsinh(Float32, N)`. The result stays in `Float32` for those concrete `Float32` entry points.
 
 ### Multidimensional Integration (2D & 3D)
 

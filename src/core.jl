@@ -16,11 +16,67 @@
 
 # Core Tanh-Sinh quadrature functions: transformation, weights, and node generation
 
+@inline _half(::Type{T}) where {T<:Real} = inv(one(T) + one(T))
+
+@inline function _midpoint_radius(low::T, up::T) where {T<:Real}
+    half = _half(T)
+    return half * (up - low), half * (up + low)
+end
+
+@inline function _needs_generic_hyperbolics(::Type{T}) where {T<:Real}
+    return nameof(T) === :MultiFloat && nameof(parentmodule(T)) === :MultiFloats
+end
+
+@inline function _asinh_generic(x::T) where {T<:Real}
+    y = sqrt(x * x + one(T))
+    return x >= zero(T) ? log(x + y) : -log(y - x)
+end
+
+@inline function _sinhcosh_generic(x::T) where {T<:Real}
+    ex = exp(x)
+    inv_ex = inv(ex)
+    half = _half(T)
+    return half * (ex - inv_ex), half * (ex + inv_ex)
+end
+
+@inline function _tanh_generic(x::T) where {T<:Real}
+    two = one(T) + one(T)
+    if x >= zero(T)
+        z = exp(-two * x)
+        return (one(T) - z) / (one(T) + z)
+    else
+        z = exp(two * x)
+        return (z - one(T)) / (z + one(T))
+    end
+end
+
+@inline function _asinh_compat(x::T) where {T<:Real}
+    if _needs_generic_hyperbolics(T)
+        return _asinh_generic(x)
+    end
+    return asinh(x)
+end
+
+@inline function _sinhcosh_compat(x::T) where {T<:Real}
+    if _needs_generic_hyperbolics(T)
+        return _sinhcosh_generic(x)
+    end
+    return sinh(x), cosh(x)
+end
+
+@inline function _tanh_compat(x::T) where {T<:Real}
+    if _needs_generic_hyperbolics(T)
+        return _tanh_generic(x)
+    end
+    return tanh(x)
+end
+
 @inline function ordinate(t::T) where {T<:Real}
     # x = tanh(π/2 * sinh(t))
     # Stability: For large t, tanh(u) -> 1 - 2exp(-2u). 
     # Directly using tanh is fine for most cases, but we guard against rounding to 1.0.
-    val = tanh(T(π) / 2 * sinh(t))
+    sinh_t, = _sinhcosh_compat(t)
+    val = _tanh_compat(T(π) / 2 * sinh_t)
 
     if val >= one(T)
         return prevfloat(one(T))
@@ -36,7 +92,8 @@ end
 Return 1 - |ordinate(t)| accurately. Useful for f(1-x).
 """
 @inline function ordinate_complement(t::T) where {T<:Real}
-    u = (T(π) / 2) * sinh(abs(t))
+    sinh_abs_t, = _sinhcosh_compat(abs(t))
+    u = (T(π) / 2) * sinh_abs_t
     # 1 - tanh(u) = 2*exp(-2u) / (1 + exp(-2u))
     # This avoids overflow in exp(2u) while preserving endpoint accuracy.
     z = exp(-2u)
@@ -44,20 +101,21 @@ Return 1 - |ordinate(t)| accurately. Useful for f(1-x).
 end
 
 @inline function weight(t::T) where {T<:Real}
-    arg = T(π) / 2 * sinh(t)
+    sinh_t, cosh_t = _sinhcosh_compat(t)
+    arg = T(π) / 2 * sinh_t
     # Stability: cosh can overflow for large t.
     # If the denominator cosh^2(...) would overflow, the weight is effectively 0.
     # For Float64, cosh(710) overflows.
     if abs(arg) > T(700.0)
         return zero(T)
     end
-    tmp = cosh(arg)
+    _, tmp = _sinhcosh_compat(arg)
     # weight = (π/2 * cosh(t)) / cosh^2(π/2 * sinh(t))
-    return ((T(π) / 2) * cosh(t)) / (tmp * tmp)
+    return ((T(π) / 2) * cosh_t) / (tmp * tmp)
 end
 
 @inline function inv_ordinate(t::T) where {T<:Real}
-    return asinh(log((one(T) + t) / (one(T) - t)) / T(π))
+    return _asinh_compat(log((one(T) + t) / (one(T) - t)) / T(π))
 end
 
 """
@@ -82,10 +140,11 @@ Ensures `(ψ'(t))^calD >= floatmin(T)` where `calD = max(1, D-1)`.
     # Target: π * sinh(t) - t <= ln(π) - (1/calD) * ln(fmin)
     rhs = log(T(π)) - log(fmin) / calD
     # Solve π * sinh(t) - t = rhs using Newton iteration
-    t = asinh(rhs / T(π))
+    t = _asinh_compat(rhs / T(π))
     for _ in 1:10
-        f = T(π) * sinh(t) - t - rhs
-        df = T(π) * cosh(t) - 1
+        sinh_t, cosh_t = _sinhcosh_compat(t)
+        f = T(π) * sinh_t - t - rhs
+        df = T(π) * cosh_t - 1
         t = t - f / df
     end
     return t
