@@ -17,11 +17,11 @@
 # 1D Integration functions
 
 """
-    integrate1D(::Type{T}, f::Function, N::Int) where {T<:Real}
+    integrate1D(::Type{T}, f, N::Int) where {T<:Real}
 
 Calculate the integral of `f` over `[-1, 1]` using `N` Tanh-Sinh quadrature points in precision `T`.
 """
-function integrate1D(::Type{T}, f::Function, N::Int) where {T<:Real}
+function integrate1D(::Type{T}, f::F, N::Int) where {T<:Real,F}
     x, w, h = tanhsinh(T, N)
     s = T(π) / 2 * f(zero(T))
     @inbounds for i in eachindex(x)
@@ -31,22 +31,22 @@ function integrate1D(::Type{T}, f::Function, N::Int) where {T<:Real}
 end
 
 """
-    integrate1D(f::Function, N::Int)
+    integrate1D(f, N::Int)
 
 Calculate the integral of `f` over `[-1, 1]` using `N` Tanh-Sinh quadrature points in `Float64` precision.
 """
 # 24-25: integrate1D
-function integrate1D(f::Function, N::Int)
+function integrate1D(f::F, N::Int) where {F}
     return integrate1D(Float64, f, N)
 end
 
 """
-    integrate1D_cmpl(::Type{T}, f::Function, N::Int) where {T<:Real}
+    integrate1D_cmpl(::Type{T}, f, N::Int) where {T<:Real}
 
 Calculate the integral of `f(x, 1-x, 1+x)` over `[-1, 1]` using `N` points.
 `f` should accept three arguments: `f(x, 1-x, 1+x)`.
 """
-function integrate1D_cmpl(::Type{T}, f::Function, N::Int) where {T<:Real}
+function integrate1D_cmpl(::Type{T}, f::F, N::Int) where {T<:Real,F}
     x, w, h = tanhsinh(T, N)
     # Origin
     s = T(π) / 2 * f(zero(T), one(T), one(T))

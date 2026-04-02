@@ -46,6 +46,35 @@ func2(x, y) = x * y
 func3(x, y, z) = x * y * z
 func_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
 
+struct JetOffsetFunctor1D{C}
+    c::C
+end
+
+(f::JetOffsetFunctor1D)(x) = x + f.c
+
+struct JetAffineFunctor2D{C}
+    c::C
+end
+
+(f::JetAffineFunctor2D)(x, y) = f.c * (x + y)
+
+struct JetAffineFunctor3D{C}
+    c::C
+end
+
+(f::JetAffineFunctor3D)(x, y, z) = f.c * (x + y + z)
+
+struct JetEndpointFunctor1D{C}
+    c::C
+end
+
+(f::JetEndpointFunctor1D)(x, bmx, xma) = f.c / sqrt(bmx * xma)
+
+const jet_functor1_64 = JetOffsetFunctor1D(1.0)
+const jet_functor2_32 = JetAffineFunctor2D(1.0f0)
+const jet_functor3_mf = JetAffineFunctor3D(Float64x2(1))
+const jet_functor_cmpl_32 = JetEndpointFunctor1D(1.0f0)
+
 @testset "Type Stability" begin
     # JET 0.9 uses `target_defined_modules`, while JET 0.11 uses `target_modules`.
     # Keep compatibility across Julia 1.11/1.12 JET lines.
@@ -195,6 +224,9 @@ func_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
     check_opt(adaptive_integrate_1D, (Type{Float128}, typeof(func1), Float128, Float128))
     check_call(adaptive_integrate_1D, (Type{Float128}, typeof(func1), Float128, Float128))
 
+    check_opt(adaptive_integrate_1D, (Type{Float64}, typeof(jet_functor1_64), Float64, Float64))
+    check_call(adaptive_integrate_1D, (Type{Float64}, typeof(jet_functor1_64), Float64, Float64))
+
     check_opt(adaptive_integrate_2D, (Type{Float64}, typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
     check_call(adaptive_integrate_2D, (Type{Float64}, typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
 
@@ -225,6 +257,9 @@ func_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
     check_opt(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(func_cmpl), Float32, Float32))
     check_call(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(func_cmpl), Float32, Float32))
 
+    check_opt(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(jet_functor_cmpl_32), Float32, Float32))
+    check_call(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(jet_functor_cmpl_32), Float32, Float32))
+
     # --- Quad Interface (1D) ---
     check_opt(quad, (typeof(func1), Float64, Float64))
     check_call(quad, (typeof(func1), Float64, Float64))
@@ -247,6 +282,9 @@ func_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
     check_opt(quad, (typeof(func1), Float128, Float128))
     check_call(quad, (typeof(func1), Float128, Float128))
 
+    check_opt(quad, (typeof(jet_functor1_64), Float64, Float64))
+    check_call(quad, (typeof(jet_functor1_64), Float64, Float64))
+
     # --- Quad Interface (2D) ---
     check_opt(quad, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
     check_call(quad, (typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
@@ -259,6 +297,9 @@ func_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
 
     check_opt(quad, (typeof(func2), SVector{2,BigFloat}, SVector{2,BigFloat}))
     check_call(quad, (typeof(func2), SVector{2,BigFloat}, SVector{2,BigFloat}))
+
+    check_opt(quad, (typeof(jet_functor2_32), SVector{2,Float32}, SVector{2,Float32}))
+    check_call(quad, (typeof(jet_functor2_32), SVector{2,Float32}, SVector{2,Float32}))
 
     # Generic function for dynamic dispatch testing (accepts 2 or 3 args)
     # JET analyzes all branches of `quad(..., Vector, Vector)`, including 2D and 3D.
@@ -286,6 +327,9 @@ func_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
 
     check_opt(quad, (typeof(func3), SVector{3,Float128}, SVector{3,Float128}))
     check_call(quad, (typeof(func3), SVector{3,Float128}, SVector{3,Float128}))
+
+    check_opt(quad, (typeof(jet_functor3_mf), SVector{3,Float64x2}, SVector{3,Float64x2}))
+    check_call(quad, (typeof(jet_functor3_mf), SVector{3,Float64x2}, SVector{3,Float64x2}))
 
     # --- Quad Split ---
     check_opt(quad_split, (typeof(func1), Float64, Float64, Float64))
@@ -332,4 +376,7 @@ func_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
 
     check_opt(quad_cmpl, (typeof(func_cmpl), Float128, Float128))
     check_call(quad_cmpl, (typeof(func_cmpl), Float128, Float128))
+
+    check_opt(quad_cmpl, (typeof(jet_functor_cmpl_32), Float32, Float32))
+    check_call(quad_cmpl, (typeof(jet_functor_cmpl_32), Float32, Float32))
 end

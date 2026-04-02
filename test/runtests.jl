@@ -63,6 +63,36 @@ f3_const(x, y, z) = one(x)
 f3_xyz(x, y, z) = x * y * z
 f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
 
+struct OffsetFunctor1D{C}
+    c::C
+end
+
+(f::OffsetFunctor1D)(x) = x + f.c
+
+struct SingularFunctor1D{C}
+    c::C
+end
+
+(f::SingularFunctor1D)(x) = f.c / sqrt(abs(x))
+
+struct EndpointFunctor1D{C}
+    c::C
+end
+
+(f::EndpointFunctor1D)(x, bmx, xma) = f.c / sqrt(bmx * xma)
+
+struct AffineFunctor2D{C}
+    c::C
+end
+
+(f::AffineFunctor2D)(x, y) = f.c * (x + y)
+
+struct AffineFunctor3D{C}
+    c::C
+end
+
+(f::AffineFunctor3D)(x, y, z) = f.c * (x + y + z)
+
 @testset "FastTanhSinhQuadrature.jl" begin
 
     include("core.jl")
@@ -197,6 +227,11 @@ f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
         f3(x, y, z) = x + y + z
         f_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
         f_split(x) = inv(sqrt(abs(x)))
+        functor1 = OffsetFunctor1D(1.0f0)
+        functor2 = AffineFunctor2D(1.0f0)
+        functor3 = AffineFunctor3D(1.0f0)
+        functor_cmpl = EndpointFunctor1D(1.0f0)
+        functor_split = SingularFunctor1D(1.0f0)
 
         @test typed_call_return_type(integrate1D, Tuple{Type{Float32}, typeof(f1), Int}) === Float32
         @test typed_call_return_type(FastTanhSinhQuadrature.integrate1D_cmpl, Tuple{Type{Float32}, typeof(f_cmpl), Int}) === Float32
@@ -213,6 +248,10 @@ f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
         @test inferred_return_type(() -> quad_split(f_split, 0.0f0, -1.0f0, 1.0f0; max_levels=0)) === Float32
         @test inferred_return_type(() -> quad_split(f_split, 0.0f0, -1.0f0, 1.0f0; tol=1f-4, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad_split(f_split, 0.0f0; tol=1f-4, max_levels=0)) === Float32
+        @test typed_call_return_type(quad, Tuple{typeof(functor1), Float32, Float32}) === Float32
+        @test inferred_return_type(() -> quad(functor1, 0.0f0, 1.0f0; tol=1f-5, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_cmpl(functor_cmpl, -1.0f0, 1.0f0; tol=1f-5, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad_split(functor_split, 0.0f0, -1.0f0, 1.0f0; tol=1f-4, max_levels=0)) === Float32
 
         @test inferred_return_type(() -> integrate2D(f2, x32, w32, h32)) === Float32
         @test inferred_return_type(() -> integrate2D(f2, low2_32, up2_32, x32, w32, h32)) === Float32
@@ -223,6 +262,7 @@ f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
         @test inferred_return_type(() -> quad(f2, low2_32, up2_32; tol=1f-4, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad(f2, [0.0f0, 0.0f0], [1.0f0, 1.0f0]; tol=1f-4, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad_split(f2, SVector(0.5f0, 0.5f0), low2_32, up2_32; tol=1f-4, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad(functor2, low2_32, up2_32; tol=1f-4, max_levels=0)) === Float32
 
         @test inferred_return_type(() -> integrate3D(f3, x32, w32, h32)) === Float32
         @test inferred_return_type(() -> integrate3D(f3, low3_32, up3_32, x32, w32, h32)) === Float32
@@ -234,6 +274,7 @@ f3_x2y2z2(x, y, z) = x^2 * y^2 * z^2
         @test inferred_return_type(() -> quad(f3, low3_32, up3_32; tol=1f-3, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad(f3, [0.0f0, 0.0f0, 0.0f0], [1.0f0, 1.0f0, 1.0f0]; tol=1f-3, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad_split(f3, SVector(0.5f0, 0.5f0, 0.5f0), low3_32, up3_32; tol=1f-3, max_levels=0)) === Float32
+        @test inferred_return_type(() -> quad(functor3, low3_32, up3_32; tol=1f-3, max_levels=0)) === Float32
     end
 
     @testset "MultiFloat type preservation and inference" begin

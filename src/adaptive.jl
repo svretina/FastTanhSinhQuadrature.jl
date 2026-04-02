@@ -17,14 +17,14 @@
 # Adaptive integration functions
 
 """
-    adaptive_integrate_1D(::Type{T}, f::Function, a, b; tol::Real=1e-12, max_levels::Int=10)
+    adaptive_integrate_1D(::Type{T}, f, a, b; tol::Real=1e-12, max_levels::Int=10)
 
 Adaptive 1D Tanh-Sinh integration over `[a, b]`. Starts with a coarse grid (h ≈ tmax/2) and halves 
 the step size at each level. Reuses function evaluations from previous levels by only computing
 new (odd-indexed) nodes. Exploits symmetry around the center of the interval.
 """
-function adaptive_integrate_1D(::Type{T}, f::Function, a, b;
-    tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
+function adaptive_integrate_1D(::Type{T}, f::F, a, b;
+    tol::Real=1e-12, max_levels::Int=10) where {T<:Real,F}
     a_T, b_T = T(a), T(b)
     Δx, x₀ = _midpoint_radius(a_T, b_T)
 
@@ -80,7 +80,7 @@ function adaptive_integrate_1D(::Type{T}, f::Function, a, b;
 end
 
 """
-    adaptive_integrate_2D(::Type{T}, f::Function, low::SVector{2,T}, up::SVector{2,T}; tol::Real=1e-10, max_levels::Int=8)
+    adaptive_integrate_2D(::Type{T}, f, low::SVector{2,T}, up::SVector{2,T}; tol::Real=1e-10, max_levels::Int=8)
 
 Adaptive 2D Tanh-Sinh integration over a rectangle. Reuses indices by only evaluating new points 
 where at least one coordinate corresponds to an odd multiple of the halved step size `h`. 
@@ -166,7 +166,7 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
 end
 
 """
-    adaptive_integrate_3D(::Type{T}, f::Function, low::SVector{3,T}, up::SVector{3,T}; tol::Real=1e-8, max_levels::Int=5)
+    adaptive_integrate_3D(::Type{T}, f, low::SVector{3,T}, up::SVector{3,T}; tol::Real=1e-8, max_levels::Int=5)
 
 Adaptive 3D Tanh-Sinh integration over a box. Reuses old points and exploits 8-way octant 
 symmetry, 4-way plane symmetry, and 2-way axis symmetry to minimize function evaluations.
@@ -283,15 +283,15 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
 end
 
 """
-    adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b; tol::Real=1e-12, max_levels::Int=10)
+    adaptive_integrate_1D_cmpl(::Type{T}, f, a, b; tol::Real=1e-12, max_levels::Int=10)
 
 Adaptive 1D Tanh-Sinh integration for endpoint-distance-aware integrands.
 For interval `[a, b]`, `f` should accept `f(x, b_minus_x, x_minus_a)`,
 where `b_minus_x = b - x` and `x_minus_a = x - a`.
 For the default interval `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
 """
-function adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b;
-    tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
+function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
+    tol::Real=1e-12, max_levels::Int=10) where {T<:Real,F}
     a_T, b_T = T(a), T(b)
     Δx, x₀ = _midpoint_radius(a_T, b_T)
 
