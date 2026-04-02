@@ -126,11 +126,12 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
     # Cache for nodes and weights to avoid repeated transcendental calls
     cache_x = T[]
     cache_w = T[]
+    max_k = 2
 
     for level in 1:max_levels
         h /= 2
         s_new = zero(T)
-        max_k = floor(Int, tm / h)
+        max_k *= 2
 
         # Populate cache for this level
         resize!(cache_x, max_k)
@@ -237,11 +238,12 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     # Cache for nodes and weights
     cache_x = T[]
     cache_w = T[]
+    max_k = 2
 
     for level in 1:max_levels
         h /= 2
         s_new = zero(T)
-        max_k = floor(Int, tm / h)
+        max_k *= 2
 
         # Populate cache
         resize!(cache_x, max_k)
