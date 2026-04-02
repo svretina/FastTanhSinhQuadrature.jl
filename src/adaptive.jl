@@ -26,8 +26,7 @@ new (odd-indexed) nodes. Exploits symmetry around the center of the interval.
 function adaptive_integrate_1D(::Type{T}, f::Function, a, b;
     tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
     a_T, b_T = T(a), T(b)
-    Δx = 0.5 * (b_T - a_T)
-    x₀ = 0.5 * (b_T + a_T)
+    Δx, x₀ = _midpoint_radius(a_T, b_T)
 
     # Initial Grid (Level 0)
     tm = tmax(T)
@@ -89,10 +88,8 @@ Exploits 4-way quadrant symmetry and 2-way axis symmetry.
 """
 function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T};
     tol::Real=1e-10, max_levels::Int=8) where {T<:Real,S}
-    Δx = 0.5 * (up[1] - low[1])
-    Δy = 0.5 * (up[2] - low[2])
-    x₀ = 0.5 * (up[1] + low[1])
-    y₀ = 0.5 * (up[2] + low[2])
+    Δx, x₀ = _midpoint_radius(low[1], up[1])
+    Δy, y₀ = _midpoint_radius(low[2], up[2])
     tm = tmax(T, 2)
     h = tm / 2
     w0 = T(π) / 2
@@ -129,11 +126,12 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
     # Cache for nodes and weights to avoid repeated transcendental calls
     cache_x = T[]
     cache_w = T[]
+    max_k = 2
 
     for level in 1:max_levels
         h /= 2
         s_new = zero(T)
-        max_k = floor(Int, tm / h)
+        max_k *= 2
 
         # Populate cache for this level
         resize!(cache_x, max_k)
@@ -175,12 +173,9 @@ symmetry, 4-way plane symmetry, and 2-way axis symmetry to minimize function eva
 """
 function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3,T};
     tol::Real=1e-8, max_levels::Int=5) where {T<:Real,S}
-    Δx = 0.5 * (up[1] - low[1])
-    Δy = 0.5 * (up[2] - low[2])
-    Δz = 0.5 * (up[3] - low[3])
-    x₀ = 0.5 * (up[1] + low[1])
-    y₀ = 0.5 * (up[2] + low[2])
-    z₀ = 0.5 * (up[3] + low[3])
+    Δx, x₀ = _midpoint_radius(low[1], up[1])
+    Δy, y₀ = _midpoint_radius(low[2], up[2])
+    Δz, z₀ = _midpoint_radius(low[3], up[3])
     tm = tmax(T, 3)
     h = tm / 2
     w₀ = T(π) / 2
@@ -243,11 +238,12 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     # Cache for nodes and weights
     cache_x = T[]
     cache_w = T[]
+    max_k = 2
 
     for level in 1:max_levels
         h /= 2
         s_new = zero(T)
-        max_k = floor(Int, tm / h)
+        max_k *= 2
 
         # Populate cache
         resize!(cache_x, max_k)
@@ -297,8 +293,7 @@ For the default interval `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
 function adaptive_integrate_1D_cmpl(::Type{T}, f::Function, a, b;
     tol::Real=1e-12, max_levels::Int=10) where {T<:Real}
     a_T, b_T = T(a), T(b)
-    Δx = 0.5 * (b_T - a_T)
-    x₀ = 0.5 * (b_T + a_T)
+    Δx, x₀ = _midpoint_radius(a_T, b_T)
 
     # Complement coordinates remain accurate well beyond t_x_max(T),
     # so use the weight-based window to avoid truncating endpoint tails.

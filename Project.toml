@@ -12,13 +12,17 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 DoubleFloats = "1.1, 1.2"
 LambertW = "1"
 LoopVectorization = "0.12"
+MultiFloats = "3"
+Quadmath = "0.5"
 StaticArrays = "1"
 Test = "1"
 julia = "1.9, 1.10, 1.11, 1.12"
 
 [extras]
 DoubleFloats = "497a8b3b-efae-58df-a0af-a86822472b78"
+MultiFloats = "bdf0d083-296b-4888-a5b6-7498122e68a5"
+Quadmath = "be4d8f0f-7fa4-5f49-b795-2f01399ab2dd"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["DoubleFloats", "Test"]
+test = ["DoubleFloats", "MultiFloats", "Quadmath", "Test"]
