@@ -102,3 +102,21 @@ end
     # AbstractVector high-level dispatch guard.
     @test_throws DimensionMismatch quad((x, y) -> x + y, [0.0, 0.0], [1.0])
 end
+
+@testset "Callable functor dispatch" begin
+    f1 = OffsetFunctor1D(10.0)
+    fsplit = SingularFunctor1D(2.0)
+    fcmpl = EndpointFunctor1D(2.0)
+    f2 = AffineFunctor2D(2.0)
+    f3 = AffineFunctor3D(2.0)
+
+    @test isapprox(quad(f1, 0.0, 1.0; tol=1e-12), 10.5, atol=1e-12)
+    @test isapprox(quad(f1; tol=1e-12), 20.0, atol=1e-12)
+    @test isapprox(quad_split(fsplit, 0.0, -1.0, 1.0; tol=1e-8), 8.0, atol=1e-7)
+    @test isapprox(quad_split(fsplit, 0.0; tol=1e-8), 8.0, atol=1e-7)
+    @test isapprox(quad_cmpl(fcmpl, -1.0, 1.0; tol=1e-12), 2π, atol=1e-12)
+    @test isapprox(quad(f2, SVector(0.0, 0.0), SVector(1.0, 1.0); tol=1e-10), 2.0, atol=1e-10)
+    @test isapprox(quad(f2, [0.0, 0.0], [1.0, 1.0]; tol=1e-10), 2.0, atol=1e-10)
+    @test isapprox(quad(f3, SVector(0.0, 0.0, 0.0), SVector(1.0, 1.0, 1.0); tol=1e-8), 3.0, atol=1e-8)
+    @test isapprox(quad(f3, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]; tol=1e-8), 3.0, atol=1e-8)
+end
