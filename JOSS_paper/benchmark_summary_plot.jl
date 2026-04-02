@@ -1,5 +1,8 @@
 using CairoMakie
 
+const QUAD_COLOR = RGBAf(0.0, 0.447, 0.698, 1.0)
+const AVX_COLOR = RGBAf(0.835, 0.369, 0.0, 1.0)
+
 struct BenchmarkRow
     dim::String
     fname::String
@@ -62,7 +65,7 @@ function label_for(case, baseline)
         "x^2*y^2*z^2" => "x^2 y^2 z^2",
         "exp(x+y+z)" => "exp(x+y+z)",
     )[fname]
-    return "$(dim) $(fname_label) [$(baseline_label)]"
+    return "$(dim) $(fname_label)\n[$(baseline_label)]"
 end
 
 function summarize(rows)
@@ -97,37 +100,50 @@ end
 
 function plot_summary(labels, quad_speedups, avx_speedups)
     CairoMakie.activate!()
-    fig = Figure(size=(980, 500), fontsize=18, figure_padding=(10, 10, 10, 10))
+    fig = Figure(size=(1450, 900), fontsize=24, figure_padding=(20, 20, 10, 10))
     ax = Axis(
         fig[1, 1],
         xlabel="Speedup vs fastest accurate competing method",
-        ylabel="Benchmark case [baseline]",
+        ylabel="Benchmark case",
         xscale=log10,
         xgridvisible=true,
-        ygridvisible=false,
+        ygridvisible=true,
         yticks=(1:length(labels), labels),
         xminorticksvisible=true,
         xticks=([0.02, 0.1, 1, 10, 100, 1000, 10000, 100000],
             ["0.02", "0.1", "1", "10", "10^2", "10^3", "10^4", "10^5"]),
-        title="Benchmark Summary",
+        xlabelsize=28,
+        ylabelsize=28,
+        xticklabelsize=20,
+        yticklabelsize=18,
     )
 
     y = collect(1:length(labels))
     y_quad = y .+ 0.14
     y_avx = y .- 0.14
 
+    hlines!(ax, y, color=(:gray90, 0.9), linewidth=1)
     vlines!(ax, [1.0], color=:gray55, linestyle=:dash, linewidth=1.5)
-    scatter!(ax, quad_speedups, y_quad, color=:dodgerblue3, marker=:circle, markersize=14,
+    scatter!(ax, quad_speedups, y_quad, color=:white, strokecolor=QUAD_COLOR, strokewidth=3,
+        marker=:circle, markersize=20,
         label="FastTanhSinh quad")
-    scatter!(ax, avx_speedups, y_avx, color=:firebrick3, marker=:rect, markersize=14,
+    scatter!(ax, avx_speedups, y_avx, color=AVX_COLOR, strokecolor=:black, strokewidth=1.5,
+        marker=:utriangle, markersize=24,
         label="FastTanhSinh avx")
 
-    text!(ax, 1.05, length(labels) + 0.55, text=">1: package faster", color=:gray35,
-        align=(:left, :bottom), fontsize=14)
+    text!(ax, 1.1, length(labels) + 0.55, text="speedup > 1 means faster", color=:gray35,
+        align=(:left, :bottom), fontsize=18)
     xlims!(ax, 0.02, 1.0e5)
     ylims!(ax, 0.5, length(labels) + 0.8)
     ax.yreversed = true
-    axislegend(ax, position=:rt, framevisible=false)
+    Legend(fig[2, 1], ax;
+        orientation=:horizontal,
+        nbanks=2,
+        framevisible=false,
+        labelsize=20,
+        patchsize=(44, 20),
+        tellwidth=false)
+    rowgap!(fig.layout, 8)
 
     return fig
 end

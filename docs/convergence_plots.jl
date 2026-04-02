@@ -4,6 +4,20 @@ using LaTeXStrings
 using GaussQuadrature
 using CairoMakie
 
+const COLORBLIND_PALETTE = [
+    RGBAf(0.0, 0.447, 0.698, 1.0),
+    RGBAf(0.835, 0.369, 0.0, 1.0),
+    RGBAf(0.0, 0.62, 0.451, 1.0),
+    RGBAf(0.8, 0.475, 0.655, 1.0),
+]
+
+const SERIES_STYLES = [
+    (color=COLORBLIND_PALETTE[1], marker=:circle, linestyle=:solid),
+    (color=COLORBLIND_PALETTE[2], marker=:rect, linestyle=:dash),
+    (color=COLORBLIND_PALETTE[3], marker=:utriangle, linestyle=:dot),
+    (color=COLORBLIND_PALETTE[4], marker=:diamond, linestyle=:dashdot),
+]
+
 # Set BigFloat precision for high-accuracy benchmarks
 setprecision(BigFloat, 256)
 const T = BigFloat
@@ -57,15 +71,18 @@ end
 function generate_convergence_plots()
     CairoMakie.activate!()
     CairoMakie.set_theme!(mytheme_aps())
-    fig = Figure(size=(2 * 253, 2 * 200), figure_padding=(1, 5, 5, 1), fontsize=20)
+    fig = Figure(size=(1100, 760), figure_padding=(20, 20, 10, 10), fontsize=26)
     ax = Axis(fig[1, 1],
         xlabel=L"\textrm{Number of Points (N)}",
         ylabel=L"\textrm{Error} \, |I - I_h|",
         yscale=log10,
         # xscale=log10,
-        title="Convergence of Tanh-Sinh Quadrature",
         xgridvisible=true,
-        ygridvisible=true)
+        ygridvisible=true,
+        xlabelsize=30,
+        ylabelsize=30,
+        xticklabelsize=20,
+        yticklabelsize=20)
 
     levels = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700]
 
@@ -74,7 +91,14 @@ function generate_convergence_plots()
 
         # Tanh-Sinh
         ns, errors = compute_convergence_errors(tf, levels)
-        sl_ts = scatterlines!(ax, ns, errors, label=tf.name, linewidth=2, markersize=8)
+        style = SERIES_STYLES[i]
+        scatterlines!(ax, ns, errors;
+            label=tf.name,
+            color=style.color,
+            linestyle=style.linestyle,
+            marker=style.marker,
+            linewidth=4,
+            markersize=18)
         # color = sl_ts.color[] # Extract color for Gauss comparison
 
         # Gauss-Legendre
@@ -82,14 +106,25 @@ function generate_convergence_plots()
         # scatterlines!(ax, ns_g, errors_g, color=color, linestyle=:dash, linewidth=2, markersize=8)
     end
 
-    axislegend(ax; position=:rb, labelsize=10, rowgap=0.2, margin=(0, 0, 25, 0))
+    Legend(fig[2, 1], ax;
+        orientation=:horizontal,
+        nbanks=2,
+        framevisible=false,
+        labelsize=18,
+        rowgap=8,
+        patchsize=(42, 18),
+        tellwidth=false)
     rowsize!(fig.layout, 1, Auto())
     colsize!(fig.layout, 1, Relative(0.9))
-    rowgap!(fig.layout, 0)
-    # Save the plot
-    save("docs/src/assets/convergence.svg", fig)
-    save("docs/src/assets/convergence.png", fig)
-    println("Saved convergence plots to docs/src/assets/convergence.{svg,png}")
+    rowgap!(fig.layout, 8)
+    repo_root = normpath(joinpath(@__DIR__, ".."))
+    docs_assets = joinpath(repo_root, "docs", "src", "assets")
+    paper_assets = joinpath(repo_root, "JOSS_paper")
+
+    save(joinpath(docs_assets, "convergence.svg"), fig)
+    save(joinpath(docs_assets, "convergence.png"), fig, px_per_unit=2)
+    save(joinpath(paper_assets, "convergence.svg"), fig)
+    println("Saved convergence plots to docs/src/assets and JOSS_paper")
 end
 
 function mytheme_aps()
@@ -99,27 +134,27 @@ function mytheme_aps()
         Axis=Attributes(; spinewidth=1.1,
             xgridvisible=true,
             xlabelpadding=-0,
-            xlabelsize=12,
+            xlabelsize=20,
             xminortickalign=1,
             xminorticks=IntervalsBetween(5, true),
             xminorticksize=3,
             xminorticksvisible=true,
             xminortickwidth=0.75,
             xtickalign=1,
-            xticklabelsize=8,
+            xticklabelsize=16,
             xticksize=5,
             xticksmirrored=true,
             xtickwidth=0.8,
             ygridvisible=true,
             ylabelpadding=2,
-            ylabelsize=12,
+            ylabelsize=20,
             yminortickalign=1,
             yminorticks=IntervalsBetween(5, true),
             yminorticksize=3,
             yminorticksvisible=true,
             yminortickwidth=0.75,
             ytickalign=1,
-            yticklabelsize=10,
+            yticklabelsize=16,
             yticksize=5,
             yticksmirrored=true,
             ytickwidth=0.8,
@@ -158,11 +193,11 @@ function mytheme_aps()
         Legend=Attributes(; colgap=4,
             framecolor=(:grey, 0.5),
             framevisible=false,
-            labelsize=7.5,
+            labelsize=14,
             margin=(0, 0, 0, 0),
             nbanks=1,
             padding=(2, 2, 2, 2),
-            rowgap=-10,
+            rowgap=2,
             #labelfont="cmr10"
         ),
         # Lines attributes
@@ -173,9 +208,9 @@ function mytheme_aps()
         Scatter=Attributes(;
             cycle=Cycle([[:color] => :color, [:marker] => :marker],
                 true),
-            markersize=7,
+            markersize=12,
             strokewidth=0),
-        markersize=7,
+        markersize=12,
         # Palette attributes
         palette=Attributes(;
             color=[RGBAf(0.298039, 0.447059, 0.690196, 1.0),
