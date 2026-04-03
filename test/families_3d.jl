@@ -61,10 +61,10 @@ end
     log3(x, y, z) = log(1 - x) * log(1 - y) * log(1 - z)
     sing3(x, y, z) = 1 / sqrt((1 - x^2) * (1 - y^2) * (1 - z^2))
 
-    @test isapprox(quad(rat3, low, up; tol=1e-9, max_levels=8), exact_rat, atol=1e-9)
-    @test isapprox(quad(exp3, low, up; tol=1e-9, max_levels=8), exact_exp, atol=1e-9)
-    @test isapprox(quad(log3, low, up; tol=1e-8, max_levels=8), exact_log, atol=5e-9)
-    @test isapprox(quad(sing3, low, up; tol=1e-8, max_levels=8), exact_sing, atol=2e-7)
+    @test isapprox(quad(rat3, low, up; rtol=1e-9, max_levels=8), exact_rat, atol=1e-9)
+    @test isapprox(quad(exp3, low, up; rtol=1e-9, max_levels=8), exact_exp, atol=1e-9)
+    @test isapprox(quad(log3, low, up; rtol=1e-8, max_levels=8), exact_log, atol=5e-9)
+    @test isapprox(quad(sing3, low, up; rtol=1e-8, max_levels=8), exact_sing, atol=2e-7)
 end
 
 @testset "3D split-domain singular family" begin
@@ -73,5 +73,5 @@ end
     c = SVector(0.0, 0.0, 0.0)
     f_abs3(x, y, z) = 1 / sqrt(abs(x * y * z))
     # Separable exact value: (∫_{-1}^1 |x|^{-1/2} dx)^3 = 4^3 = 64.
-    @test isapprox(quad_split(f_abs3, c, low, up; tol=1e-6, max_levels=6), 64.0, atol=3e-6)
+    @test isapprox(quad_split(f_abs3, c, low, up; rtol=1e-6, max_levels=6), 64.0, atol=3e-6)
 end

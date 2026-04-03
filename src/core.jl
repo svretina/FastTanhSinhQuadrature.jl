@@ -23,6 +23,22 @@
     return half * (up - low), half * (up + low)
 end
 
+@inline function _resolve_tolerances(::Type{T}; rtol=nothing, atol::Real=0) where {T<:Real}
+    atol_T = T(atol)
+    rtol_T = if rtol !== nothing
+        T(rtol)
+    elseif iszero(atol_T)
+        sqrt(eps(T))
+    else
+        zero(T)
+    end
+    rtol_T >= zero(T) || throw(ArgumentError("`rtol` must be nonnegative."))
+    atol_T >= zero(T) || throw(ArgumentError("`atol` must be nonnegative."))
+    return rtol_T, atol_T
+end
+
+@inline _error_target(I::T, rtol::T, atol::T) where {T<:Real} = max(atol, rtol * abs(I))
+
 @inline function _needs_generic_hyperbolics(::Type{T}) where {T<:Real}
     return nameof(T) === :MultiFloat && nameof(parentmodule(T)) === :MultiFloats
 end
@@ -231,4 +247,121 @@ end
     end
     tm = tmax(T, D)
     return tm / n
+end
+
+struct _Adaptive1DCache{T}
+    tm::T
+    initial_x::NTuple{2,T}
+    initial_w::NTuple{2,T}
+    initial_c::NTuple{2,T}
+    xs::Vector{Vector{T}}
+    ws::Vector{Vector{T}}
+    cs::Vector{Vector{T}}
+end
+
+@inline _adaptive_1d_window(::Type{T}, kind::Symbol) where {T<:Real} =
+    kind === :complement ? t_w_max(T, 1) : tmax(T)
+
+const _ADAPTIVE_1D_CACHES = Dict{Tuple{DataType, Int, Symbol}, Any}()
+const _ADAPTIVE_1D_CACHES_LOCK = ReentrantLock()
+
+function _build_adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol) where {T<:Real}
+    max_levels >= 0 || throw(ArgumentError("`max_levels` must be nonnegative."))
+    tm = _adaptive_1d_window(T, kind)
+    half = _half(T)
+    h = tm * half
+
+    initial_x = ntuple(Val(2)) do i
+        ordinate(T(i) * h)
+    end
+    initial_w = ntuple(Val(2)) do i
+        weight(T(i) * h)
+    end
+    initial_c = ntuple(Val(2)) do i
+        ordinate_complement(T(i) * h)
+    end
+
+    xs = Vector{Vector{T}}(undef, max_levels)
+    ws = Vector{Vector{T}}(undef, max_levels)
+    cs = Vector{Vector{T}}(undef, max_levels)
+    for level in 1:max_levels
+        h *= half
+        n = 1 << level
+        x = Vector{T}(undef, n)
+        w = Vector{T}(undef, n)
+        c = Vector{T}(undef, n)
+        @inbounds for i in 1:n
+            tk = (2i - 1) * h
+            x[i] = ordinate(tk)
+            w[i] = weight(tk)
+            c[i] = ordinate_complement(tk)
+        end
+        xs[level] = x
+        ws[level] = w
+        cs[level] = c
+    end
+    return _Adaptive1DCache{T}(tm, initial_x, initial_w, initial_c, xs, ws, cs)
+end
+
+function _adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol=:regular) where {T<:Real}
+    key = (T, max_levels, kind)
+    Base.@lock _ADAPTIVE_1D_CACHES_LOCK begin
+        cache = get!(_ADAPTIVE_1D_CACHES, key) do
+            _build_adaptive_1d_cache(T, max_levels, kind)
+        end
+        return cache::_Adaptive1DCache{T}
+    end
+end
+
+struct _AdaptiveTensorCache{T}
+    tm::T
+    initial_x::NTuple{2,T}
+    initial_w::NTuple{2,T}
+    xs::Vector{Vector{T}}
+    ws::Vector{Vector{T}}
+end
+
+const _ADAPTIVE_TENSOR_CACHES = Dict{Tuple{DataType, Int, Int}, Any}()
+const _ADAPTIVE_TENSOR_CACHES_LOCK = ReentrantLock()
+
+function _build_adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Real}
+    max_levels >= 0 || throw(ArgumentError("`max_levels` must be nonnegative."))
+    tm = tmax(T, D)
+    half = _half(T)
+    h = tm * half
+
+    initial_x = ntuple(Val(2)) do i
+        ordinate(T(i) * h)
+    end
+    initial_w = ntuple(Val(2)) do i
+        weight(T(i) * h)
+    end
+
+    xs = Vector{Vector{T}}(undef, max_levels)
+    ws = Vector{Vector{T}}(undef, max_levels)
+    max_k = 2
+    for level in 1:max_levels
+        h *= half
+        max_k *= 2
+        x = Vector{T}(undef, max_k)
+        w = Vector{T}(undef, max_k)
+        @inbounds for i in 1:max_k
+            ti = T(i) * h
+            x[i] = ordinate(ti)
+            w[i] = weight(ti)
+        end
+        xs[level] = x
+        ws[level] = w
+    end
+    return _AdaptiveTensorCache{T}(tm, initial_x, initial_w, xs, ws)
+end
+
+function _adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Real}
+    key = (T, D, max_levels)
+    Base.@lock _ADAPTIVE_TENSOR_CACHES_LOCK begin
+        cache = get!(_ADAPTIVE_TENSOR_CACHES, key) do
+            _build_adaptive_tensor_cache(T, D, max_levels)
+        end
+        return cache::_AdaptiveTensorCache{T}
+    end
 end
