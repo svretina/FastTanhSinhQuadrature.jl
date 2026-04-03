@@ -4,7 +4,7 @@
     c = SVector(0.0, 0.0)
     f2(x, y) = x^2 + y^2
     # ∫∫ (x²+y²) dx dy on [-1,1]² = 8/3.
-    @test isapprox(quad_split(f2, c, low, up; tol=1e-9, max_levels=8), 8 / 3, atol=1e-9)
+    @test isapprox(quad_split(f2, c, low, up; rtol=1e-9, max_levels=8), 8 / 3, atol=1e-9)
 end
 
 @testset "Adaptive base-level path (max_levels=0)" begin
@@ -67,7 +67,7 @@ end
 
     f_cmpl(x, bmx, xma) = 1 / sqrt(bmx * xma)
     @test quad_cmpl(f_cmpl, 1.0, 1.0) == 0.0
-    @test isapprox(quad_cmpl(f_cmpl, 1.0, -1.0; tol=1e-12), -π, atol=1e-12)
+    @test isapprox(quad_cmpl(f_cmpl, 1.0, -1.0; rtol=1e-12), -π, atol=1e-12)
 end
 
 @testset "Quad Dispatch Coverage" begin
@@ -79,25 +79,25 @@ end
     # Promote non-float scalar bounds.
     @test isapprox(quad(x -> x^2, -1, 1), 2 / 3, atol=1e-12)
     @test isapprox(quad_split(x -> inv(sqrt(abs(x))), 0, -1, 1), 4.0, atol=1e-7)
-    @test isapprox(quad_cmpl(f_cmpl, -1, 1; tol=1e-12), π, atol=1e-12)
-    @test isapprox(quad_cmpl(f_cmpl, -1, 1.0; tol=1e-12), π, atol=1e-12)
+    @test isapprox(quad_cmpl(f_cmpl, -1, 1; rtol=1e-12), π, atol=1e-12)
+    @test isapprox(quad_cmpl(f_cmpl, -1, 1.0; rtol=1e-12), π, atol=1e-12)
 
     # Promote non-float SVector bounds.
     @test isapprox(quad((x, y) -> one(x), SVector(-1, -1), SVector(1, 1)), 4.0, atol=1e-12)
     @test isapprox(quad((x, y, z) -> one(x), SVector(-1, -1, -1), SVector(1, 1, 1)), 8.0, atol=1e-12)
-    @test isapprox(quad_split((x, y) -> one(x), SVector(0, 0), SVector(-1, -1), SVector(1, 1); tol=1e-9, max_levels=8), 4.0, atol=1e-9)
-    @test isapprox(quad_split((x, y, z) -> one(x), SVector(0, 0, 0), SVector(-1, -1, -1), SVector(1, 1, 1); tol=1e-8, max_levels=5), 8.0, atol=1e-8)
+    @test isapprox(quad_split((x, y) -> one(x), SVector(0, 0), SVector(-1, -1), SVector(1, 1); rtol=1e-9, max_levels=8), 4.0, atol=1e-9)
+    @test isapprox(quad_split((x, y, z) -> one(x), SVector(0, 0, 0), SVector(-1, -1, -1), SVector(1, 1, 1); rtol=1e-8, max_levels=5), 8.0, atol=1e-8)
 
     # Mixed-precision SVector quad_split overloads.
     c2 = SVector{2,Float32}(0, 0)
     low2 = SVector(-1.0, -1.0)
     up2 = SVector(1, 1)
-    @test isapprox(quad_split((x, y) -> x^2 + y^2, c2, low2, up2; tol=1e-9, max_levels=8), 8 / 3, atol=5e-8)
+    @test isapprox(quad_split((x, y) -> x^2 + y^2, c2, low2, up2; rtol=1e-9, max_levels=8), 8 / 3, atol=5e-8)
 
     c3 = SVector{3,Float32}(0, 0, 0)
     low3 = SVector(-1.0, -1.0, -1.0)
     up3 = SVector(1, 1, 1)
-    @test isapprox(quad_split((x, y, z) -> one(x), c3, low3, up3; tol=1e-8, max_levels=5), 8.0, atol=1e-8)
+    @test isapprox(quad_split((x, y, z) -> one(x), c3, low3, up3; rtol=1e-8, max_levels=5), 8.0, atol=1e-8)
 
     # AbstractVector high-level dispatch guard.
     @test_throws DimensionMismatch quad((x, y) -> x + y, [0.0, 0.0], [1.0])
@@ -110,13 +110,13 @@ end
     f2 = AffineFunctor2D(2.0)
     f3 = AffineFunctor3D(2.0)
 
-    @test isapprox(quad(f1, 0.0, 1.0; tol=1e-12), 10.5, atol=1e-12)
-    @test isapprox(quad(f1; tol=1e-12), 20.0, atol=1e-12)
-    @test isapprox(quad_split(fsplit, 0.0, -1.0, 1.0; tol=1e-8), 8.0, atol=1e-7)
-    @test isapprox(quad_split(fsplit, 0.0; tol=1e-8), 8.0, atol=1e-7)
-    @test isapprox(quad_cmpl(fcmpl, -1.0, 1.0; tol=1e-12), 2π, atol=1e-12)
-    @test isapprox(quad(f2, SVector(0.0, 0.0), SVector(1.0, 1.0); tol=1e-10), 2.0, atol=1e-10)
-    @test isapprox(quad(f2, [0.0, 0.0], [1.0, 1.0]; tol=1e-10), 2.0, atol=1e-10)
-    @test isapprox(quad(f3, SVector(0.0, 0.0, 0.0), SVector(1.0, 1.0, 1.0); tol=1e-8), 3.0, atol=1e-8)
-    @test isapprox(quad(f3, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]; tol=1e-8), 3.0, atol=1e-8)
+    @test isapprox(quad(f1, 0.0, 1.0; rtol=1e-12), 10.5, atol=1e-12)
+    @test isapprox(quad(f1; rtol=1e-12), 20.0, atol=1e-12)
+    @test isapprox(quad_split(fsplit, 0.0, -1.0, 1.0; rtol=1e-8), 8.0, atol=1e-7)
+    @test isapprox(quad_split(fsplit, 0.0; rtol=1e-8), 8.0, atol=1e-7)
+    @test isapprox(quad_cmpl(fcmpl, -1.0, 1.0; rtol=1e-12), 2π, atol=1e-12)
+    @test isapprox(quad(f2, SVector(0.0, 0.0), SVector(1.0, 1.0); rtol=1e-10), 2.0, atol=1e-10)
+    @test isapprox(quad(f2, [0.0, 0.0], [1.0, 1.0]; rtol=1e-10), 2.0, atol=1e-10)
+    @test isapprox(quad(f3, SVector(0.0, 0.0, 0.0), SVector(1.0, 1.0, 1.0); rtol=1e-8), 3.0, atol=1e-8)
+    @test isapprox(quad(f3, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]; rtol=1e-8), 3.0, atol=1e-8)
 end

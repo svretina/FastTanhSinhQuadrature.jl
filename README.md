@@ -165,7 +165,7 @@ Switch to higher precision types like `BigFloat` or `Double64`:
 using FastTanhSinhQuadrature, DoubleFloats
 
 # Double64 precision (~32 decimal digits)
-val = quad(exp, Double64(0), Double64(1); tol=1e-30)
+val = quad(exp, Double64(0), Double64(1); rtol=1e-30)
 
 # BigFloat precision (arbitrary)
 setprecision(BigFloat, 256)
@@ -200,8 +200,8 @@ println(val)  # ≈ 1.0
 
 | Function | Description |
 |----------|-------------|
-| `quad(f; tol, max_levels)` | Adaptive 1D integration over `[-1, 1]` |
-| `quad(f, low, up; tol, max_levels)` | Adaptive 1D integration over `[low, up]` for `low, up <: Real` |
+| `quad(f; rtol, atol, max_levels)` | Adaptive 1D integration over `[-1, 1]` |
+| `quad(f, low, up; rtol, atol, max_levels)` | Adaptive 1D integration over `[low, up]` for `low, up <: Real` |
 | `quad_cmpl(f, low, up; ...)` | High-accuracy 1D integration for `f(x, b-x, x-a)` |
 | `quad(f, low, up; ...)` | Adaptive 2D/3D integration (accepts `SVector` or vectors of reals) |
 | `quad_split(f, c; ...)` | Split domain `[-1, 1]` at singularity `c` and integrate |
@@ -236,7 +236,7 @@ println(val)  # ≈ 1.0
 
 | Function | Description |
 | :--- | :--- |
-| `adaptive_integrate_1D(T, f, a, b; tol, max_levels)` | Adaptive 1D with explicit type |
+| `adaptive_integrate_1D(T, f, a, b; rtol, atol, max_levels)` | Adaptive 1D with explicit type |
 | `adaptive_integrate_1D_cmpl(T, f, a, b; ...)` | Adaptive 1D with complement interface |
 | `adaptive_integrate_2D(T, f, low, up; ...)` | Adaptive 2D integration (cached nodes) |
 | `adaptive_integrate_3D(T, f, low, up; ...)` | Adaptive 3D integration (cached nodes) |

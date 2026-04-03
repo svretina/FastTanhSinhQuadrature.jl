@@ -17,82 +17,81 @@
 # Adaptive integration functions
 
 """
-    adaptive_integrate_1D(::Type{T}, f, a, b; tol::Real=1e-12, max_levels::Int=10)
+    adaptive_integrate_1D(::Type{T}, f, a, b; rtol, atol, max_levels::Int=16, warn::Bool=true)
 
 Adaptive 1D Tanh-Sinh integration over `[a, b]`. Starts with a coarse grid (h ≈ tmax/2) and halves 
 the step size at each level. Reuses function evaluations from previous levels by only computing
 new (odd-indexed) nodes. Exploits symmetry around the center of the interval.
 """
 function adaptive_integrate_1D(::Type{T}, f::F, a, b;
-    tol::Real=1e-12, max_levels::Int=10) where {T<:Real,F}
+    rtol=nothing, atol::Real=0, max_levels::Int=16,
+    warn::Bool=true) where {T<:Real,F}
     a_T, b_T = T(a), T(b)
+    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
     Δx, x₀ = _midpoint_radius(a_T, b_T)
+    cache = _adaptive_1d_cache(T, max_levels)
+    half = _half(T)
 
     # Initial Grid (Level 0)
-    tm = tmax(T)
-    h = tm / 2
+    h = cache.tm * half
 
     # Weight at t=0 is π/2
-    w0 = T(π) / 2
+    w0 = T(π) * half
     s_total = w0 * f(x₀)
 
     # Initial Level evaluations
-    for k in 1:2
-        tk = k * h
-        s_total += weight(tk) * (f(x₀ + Δx * ordinate(tk)) + f(x₀ - Δx * ordinate(tk)))
+    @inbounds for i in 1:2
+        xk = cache.initial_x[i]
+        Δxxk = Δx * xk
+        s_total += cache.initial_w[i] * (f(x₀ + Δxxk) + f(x₀ - Δxxk))
     end
 
     old_res = Δx * h * s_total
 
-    # Pre-allocate caches for ordinates and weights to avoid $O(N)$ transcendental calls
-    # Level 1 will add points at 1h, 3h... but h is halved.
-    # We can pre-calculate the points needed for the next level.
-
+    err_est = zero(T)
     for level in 1:max_levels
-        h /= 2
+        h *= half
         s_new = zero(T)
-
-        # New points are at ODD multiples of the new h: 1h, 3h, 5h...
-        # We use a simple loop here. Performance for 1D is usually dominated by f.
-        # But we can still optimize the weight/ordinate calls.
-        k = 1
-        while true
-            tk = k * h
-            tk > tm && break
-
-            # Pre-calculation optimization: 
-            # In a real high-performance scenario, we'd pre-generate these nodes.
-            wk = weight(tk)
-            xk = ordinate(tk)
-            s_new += wk * (f(x₀ + Δx * xk) + f(x₀ - Δx * xk))
-            k += 2
+        x_level = cache.xs[level]
+        w_level = cache.ws[level]
+        @inbounds for i in eachindex(x_level)
+            xk = x_level[i]
+            Δxxk = Δx * xk
+            s_new += w_level[i] * (f(x₀ + Δxxk) + f(x₀ - Δxxk))
         end
 
         s_total += s_new
         new_res = Δx * h * s_total
+        err_est = abs(new_res - old_res)
 
-        if abs(new_res - old_res) < tol * max(one(T), abs(new_res))
+        if err_est <= _error_target(new_res, rtol_T, atol_T)
             return new_res
         end
         old_res = new_res
+    end
+    if warn && max_levels > 0
+        @warn "adaptive_integrate_1D reached max_levels without meeting the requested tolerance." max_levels estimated_error=err_est target=_error_target(old_res, rtol_T, atol_T) value=old_res rtol=rtol_T atol=atol_T
     end
     return old_res
 end
 
 """
-    adaptive_integrate_2D(::Type{T}, f, low::SVector{2,T}, up::SVector{2,T}; tol::Real=1e-10, max_levels::Int=8)
+    adaptive_integrate_2D(::Type{T}, f, low::SVector{2,T}, up::SVector{2,T}; rtol, atol, max_levels::Int=8, warn::Bool=true)
 
 Adaptive 2D Tanh-Sinh integration over a rectangle. Reuses indices by only evaluating new points 
 where at least one coordinate corresponds to an odd multiple of the halved step size `h`. 
 Exploits 4-way quadrant symmetry and 2-way axis symmetry.
 """
 function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T};
-    tol::Real=1e-10, max_levels::Int=8) where {T<:Real,S}
+    rtol=nothing, atol::Real=0, max_levels::Int=8,
+    warn::Bool=true) where {T<:Real,S}
+    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
     Δx, x₀ = _midpoint_radius(low[1], up[1])
     Δy, y₀ = _midpoint_radius(low[2], up[2])
-    tm = tmax(T, 2)
-    h = tm / 2
-    w0 = T(π) / 2
+    cache = _adaptive_tensor_cache(T, 2, max_levels)
+    half = _half(T)
+    h = cache.tm * half
+    w0 = T(π) * half
 
     # Helper to evaluate symmetric 4 quadrant points
     @inline function eval_quadrants(xi, yi, wi, wj)
@@ -110,12 +109,10 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
 
     # Initial Level 0 (h, 2h)
     s_total = (w0^2) * f(x₀, y₀)
-    for i in 1:2
-        ti = i * h
-        xi, wi = ordinate(ti), weight(ti)
+    @inbounds for i in 1:2
+        xi, wi = cache.initial_x[i], cache.initial_w[i]
         for j in 1:2
-            tj = j * h
-            xj, wj = ordinate(tj), weight(tj)
+            xj, wj = cache.initial_x[j], cache.initial_w[j]
             s_total += eval_quadrants(xi, xj, wi, wj)
         end
         s_total += eval_axes(xi, wi)
@@ -123,31 +120,20 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
 
     old_res = Δx * Δy * h^2 * s_total
 
-    # Cache for nodes and weights to avoid repeated transcendental calls
-    cache_x = T[]
-    cache_w = T[]
-    max_k = 2
-
+    err_est = zero(T)
     for level in 1:max_levels
-        h /= 2
+        h *= half
         s_new = zero(T)
-        max_k *= 2
+        x_level = cache.xs[level]
+        w_level = cache.ws[level]
+        n = length(x_level)
 
-        # Populate cache for this level
-        resize!(cache_x, max_k)
-        resize!(cache_w, max_k)
-        for i in 1:max_k
-            ti = i * h
-            cache_x[i] = ordinate(ti)
-            cache_w[i] = weight(ti)
-        end
-
-        for i in 1:max_k
-            xi, wi = cache_x[i], cache_w[i]
-            for j in 1:max_k
+        @inbounds for i in 1:n
+            xi, wi = x_level[i], w_level[i]
+            for j in 1:n
                 # Point is new if at least one index is odd
                 (iseven(i) && iseven(j)) && continue
-                s_new += eval_quadrants(xi, cache_x[j], wi, cache_w[j])
+                s_new += eval_quadrants(xi, x_level[j], wi, w_level[j])
             end
             if isodd(i)
                 s_new += eval_axes(xi, wi)
@@ -156,29 +142,36 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
 
         s_total += s_new
         new_res = Δx * Δy * h^2 * s_total
+        err_est = abs(new_res - old_res)
 
-        if abs(new_res - old_res) < tol * max(one(T), abs(new_res))
+        if err_est <= _error_target(new_res, rtol_T, atol_T)
             return new_res
         end
         old_res = new_res
+    end
+    if warn && max_levels > 0
+        @warn "adaptive_integrate_2D reached max_levels without meeting the requested tolerance." max_levels estimated_error=err_est target=_error_target(old_res, rtol_T, atol_T) value=old_res rtol=rtol_T atol=atol_T
     end
     return old_res
 end
 
 """
-    adaptive_integrate_3D(::Type{T}, f, low::SVector{3,T}, up::SVector{3,T}; tol::Real=1e-8, max_levels::Int=5)
+    adaptive_integrate_3D(::Type{T}, f, low::SVector{3,T}, up::SVector{3,T}; rtol, atol, max_levels::Int=5, warn::Bool=true)
 
 Adaptive 3D Tanh-Sinh integration over a box. Reuses old points and exploits 8-way octant 
 symmetry, 4-way plane symmetry, and 2-way axis symmetry to minimize function evaluations.
 """
 function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3,T};
-    tol::Real=1e-8, max_levels::Int=5) where {T<:Real,S}
+    rtol=nothing, atol::Real=0, max_levels::Int=5,
+    warn::Bool=true) where {T<:Real,S}
+    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
     Δx, x₀ = _midpoint_radius(low[1], up[1])
     Δy, y₀ = _midpoint_radius(low[2], up[2])
     Δz, z₀ = _midpoint_radius(low[3], up[3])
-    tm = tmax(T, 3)
-    h = tm / 2
-    w₀ = T(π) / 2
+    cache = _adaptive_tensor_cache(T, 3, max_levels)
+    half = _half(T)
+    h = cache.tm * half
+    w₀ = T(π) * half
 
     # Evaluate a single point in the octant (8 reflections)
     @inline function add_octant(vi, vj, vk, wi, wj, wk)
@@ -217,15 +210,12 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
 
     # Initial Level 0 (k=1, 2)
     s_total = (w₀^3) * f(x₀, y₀, z₀)
-    for i in 1:2
-        ti = i * h
-        vi, wi = ordinate(ti), weight(ti)
+    @inbounds for i in 1:2
+        vi, wi = cache.initial_x[i], cache.initial_w[i]
         for j in 1:2
-            tj = j * h
-            vj, wj = ordinate(tj), weight(tj)
+            vj, wj = cache.initial_x[j], cache.initial_w[j]
             for k in 1:2
-                tk = k * h
-                vk, wk = ordinate(tk), weight(tk)
+                vk, wk = cache.initial_x[k], cache.initial_w[k]
                 s_total += add_octant(vi, vj, vk, wi, wj, wk)
             end
             s_total += add_planes(vi, vj, wi, wj)
@@ -235,32 +225,21 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
 
     old_res = Δx * Δy * Δz * h^3 * s_total
 
-    # Cache for nodes and weights
-    cache_x = T[]
-    cache_w = T[]
-    max_k = 2
-
+    err_est = zero(T)
     for level in 1:max_levels
-        h /= 2
+        h *= half
         s_new = zero(T)
-        max_k *= 2
+        x_level = cache.xs[level]
+        w_level = cache.ws[level]
+        n = length(x_level)
 
-        # Populate cache
-        resize!(cache_x, max_k)
-        resize!(cache_w, max_k)
-        for i in 1:max_k
-            ti = i * h
-            cache_x[i] = ordinate(ti)
-            cache_w[i] = weight(ti)
-        end
-
-        for i in 1:max_k
-            xi, wi = cache_x[i], cache_w[i]
-            for j in 1:max_k
-                xj, wj = cache_x[j], cache_w[j]
-                for k in 1:max_k
+        @inbounds for i in 1:n
+            xi, wi = x_level[i], w_level[i]
+            for j in 1:n
+                xj, wj = x_level[j], w_level[j]
+                for k in 1:n
                     (iseven(i) && iseven(j) && iseven(k)) && continue
-                    s_new += add_octant(xi, xj, cache_x[k], wi, wj, cache_w[k])
+                    s_new += add_octant(xi, xj, x_level[k], wi, wj, w_level[k])
                 end
                 if !(iseven(i) && iseven(j))
                     s_new += add_planes(xi, xj, wi, wj)
@@ -273,17 +252,21 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
 
         s_total += s_new
         new_res = Δx * Δy * Δz * h^3 * s_total
+        err_est = abs(new_res - old_res)
 
-        if abs(new_res - old_res) < tol * max(one(T), abs(new_res))
+        if err_est <= _error_target(new_res, rtol_T, atol_T)
             return new_res
         end
         old_res = new_res
+    end
+    if warn && max_levels > 0
+        @warn "adaptive_integrate_3D reached max_levels without meeting the requested tolerance." max_levels estimated_error=err_est target=_error_target(old_res, rtol_T, atol_T) value=old_res rtol=rtol_T atol=atol_T
     end
     return old_res
 end
 
 """
-    adaptive_integrate_1D_cmpl(::Type{T}, f, a, b; tol::Real=1e-12, max_levels::Int=10)
+    adaptive_integrate_1D_cmpl(::Type{T}, f, a, b; rtol, atol, max_levels::Int=16, warn::Bool=true)
 
 Adaptive 1D Tanh-Sinh integration for endpoint-distance-aware integrands.
 For interval `[a, b]`, `f` should accept `f(x, b_minus_x, x_minus_a)`,
@@ -291,50 +274,66 @@ where `b_minus_x = b - x` and `x_minus_a = x - a`.
 For the default interval `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
 """
 function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
-    tol::Real=1e-12, max_levels::Int=10) where {T<:Real,F}
+    rtol=nothing, atol::Real=0, max_levels::Int=16,
+    warn::Bool=true) where {T<:Real,F}
     a_T, b_T = T(a), T(b)
+    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
     Δx, x₀ = _midpoint_radius(a_T, b_T)
+    cache = _adaptive_1d_cache(T, max_levels, :complement)
+    half = _half(T)
+    one_T = one(T)
 
     # Complement coordinates remain accurate well beyond t_x_max(T),
     # so use the weight-based window to avoid truncating endpoint tails.
-    tm = t_w_max(T, 1)
-    h = tm / 2
-    w0 = T(π) / 2
+    h = cache.tm * half
+    w0 = T(π) * half
     s_total = w0 * f(x₀, Δx, Δx)
 
-    for k in 1:2
-        tk = k * h
-        wk, xk, ck = weight(tk), ordinate(tk), ordinate_complement(tk)
+    @inbounds for i in 1:2
+        xk = cache.initial_x[i]
+        ck = cache.initial_c[i]
+        wk = cache.initial_w[i]
+        Δxxk = Δx * xk
+        Δxck = Δx * ck
+        Δx1pxk = Δx * (one_T + xk)
         # f(x, b-x, x-a)
         # At x = x₀ + Δx*xk:
         # b - (x₀ + Δx*xk) = (x₀ + Δx) - (x₀ + Δx*xk) = Δx * (1 - xk) = Δx * ck
         # (x₀ + Δx*xk) - a = (x₀ + Δx*xk) - (x₀ - Δx) = Δx * (1 + xk)
-        s_total += wk * (f(x₀ + Δx * xk, Δx * ck, Δx * (one(T) + xk)) +
-                         f(x₀ - Δx * xk, Δx * (one(T) + xk), Δx * ck))
+        s_total += wk * (f(x₀ + Δxxk, Δxck, Δx1pxk) +
+                         f(x₀ - Δxxk, Δx1pxk, Δxck))
     end
 
     old_res = Δx * h * s_total
 
+    err_est = zero(T)
     for level in 1:max_levels
-        h /= 2
+        h *= half
         s_new = zero(T)
-        k = 1
-        while true
-            tk = k * h
-            tk > tm && break
-            wk, xk, ck = weight(tk), ordinate(tk), ordinate_complement(tk)
-            s_new += wk * (f(x₀ + Δx * xk, Δx * ck, Δx * (one(T) + xk)) +
-                           f(x₀ - Δx * xk, Δx * (one(T) + xk), Δx * ck))
-            k += 2
+        x_level = cache.xs[level]
+        w_level = cache.ws[level]
+        c_level = cache.cs[level]
+        @inbounds for i in eachindex(x_level)
+            xk = x_level[i]
+            ck = c_level[i]
+            Δxxk = Δx * xk
+            Δxck = Δx * ck
+            Δx1pxk = Δx * (one_T + xk)
+            s_new += w_level[i] * (f(x₀ + Δxxk, Δxck, Δx1pxk) +
+                                   f(x₀ - Δxxk, Δx1pxk, Δxck))
         end
 
         s_total += s_new
         new_res = Δx * h * s_total
+        err_est = abs(new_res - old_res)
 
-        if abs(new_res - old_res) < tol * max(one(T), abs(new_res))
+        if err_est <= _error_target(new_res, rtol_T, atol_T)
             return new_res
         end
         old_res = new_res
+    end
+    if warn && max_levels > 0
+        @warn "adaptive_integrate_1D_cmpl reached max_levels without meeting the requested tolerance." max_levels estimated_error=err_est target=_error_target(old_res, rtol_T, atol_T) value=old_res rtol=rtol_T atol=atol_T
     end
     return old_res
 end

@@ -52,7 +52,7 @@ using DoubleFloats
 f(x) = exp(x)
 
 # Use Double64 for extended precision (~32 decimal digits)
-val = quad(f, Double64(0), Double64(1); tol=1e-30)
+val = quad(f, Double64(0), Double64(1); rtol=1e-30)
 println("High precision result: $val")
 
 # Or with pre-computed nodes
