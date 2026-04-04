@@ -11,7 +11,7 @@
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 [![](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
 [![status](https://joss.theoj.org/papers/84c42780ad01b47c0c3b5f1ab5c26260/status.svg)](https://joss.theoj.org/papers/84c42780ad01b47c0c3b5f1ab5c26260)
-
+[![DOI](https://zenodo.org/badge/708778433.svg)](https://doi.org/10.5281/zenodo.19420465)
 
 Fast and high-precision numerical integration using **Tanh-Sinh (Double Exponential) quadrature** in Julia.
 
