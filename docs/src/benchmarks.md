@@ -18,6 +18,9 @@ Cross-library comparisons include:
 - For each test case, we infer an `N` from the level where `FTS adaptive`
   satisfies the stopping criterion.
 - `FTS avx` is benchmarked at that adaptive-matched `N`.
+- In the summary figure, the SIMD path is shown for both newer Julia
+  (where `@turbo` can degrade to a fallback) and Julia 1.12
+  (where `LoopVectorization` is active), so the version effect is visible.
 - `FastGauss` (1D) is calibrated independently to the same tolerance target.
 - The table therefore reports adaptive tolerance-based runs plus fixed-grid
   comparisons where each method uses its own convergence path.
@@ -36,6 +39,10 @@ is usually the problem class:
 
 - Domain: case-dependent (most tests use `[-1,1]^d`; oscillatory 1D test uses `[-π,π]`)
 - Tolerances: `rtol = 1e-6`, `atol = 1e-8`
+- Same target is used across libraries:
+  `quad`/`adaptive_integrate_*`/`QuadGK`/`HCubature`/`Cuba` use `rtol`+`atol`,
+  `Cubature.jl` uses `reltol`+`abstol` set to the same values,
+  and `FastGauss` is calibrated to satisfy the same target in terms of actual error.
 - Max evaluations (external adaptive solvers): `200000`
 - Timing: `@belapsed` with interpolation (`samples=3`, `evals=1`)
 - One warm call is executed before each timed benchmark.
@@ -57,17 +64,17 @@ Raw output files are generated at:
 
 | Dim | Function | FTS adaptive | FTS quad | FTS avx | QuadGK | HCubature | Cubature h | Cubature p | Cuba Vegas | Cuba Divonne | Cuba Cuhre | FastGauss |
 | :-- | :------- | ----------: | -------: | ------: | -----: | --------: | ---------: | ---------: | ---------: | -----------: | ---------: | --------: |
-| 1D | 1/(1+25x^2) | 735.0000 | 628.0000 | 474.0000 | 1612.0000 | 1.620e+04 | 1.644e+04 | 2.007e+04 | n/a | n/a | n/a | 176.0000 |
-| 1D | 1/sqrt(1-x^2) | 574.0000 | 528.0000 | 523.0000 | 1.154e+04 | 2.189e+05 | 2.389e+05 | 2834.0000 * | n/a | n/a | n/a | 1.146e+04 * |
-| 1D | log(1-x) | 1013.0000 | 592.0000 | 442.0000 | 5237.0000 | 6.031e+04 | 7.402e+04 | 1356.0000 * | n/a | n/a | n/a | 1.208e+04 |
-| 1D | sin^2(1000x) | 1.770e+05 | 2.542e+05 | 2.909e+04 | 1.142e+04 | 1.313e+05 | 1.041e+05 | 1301.0000 * | n/a | n/a | n/a | 3.748e+04 |
-| 1D | x^6 - 2x^3 + 0.5 | 1306.0000 | 803.0000 | 335.0000 | 1898.0000 | 4813.0000 | 2249.0000 | 8949.0000 | n/a | n/a | n/a | 118.0000 |
-| 2D | 1/sqrt((1-x^2)(1-y^2)) | 3663.0000 | 3660.0000 | 1865.0000 | n/a | 5.218e+07 | 2.832e+07 | 2433.0000 * | 9.357e+07 * | 1.140e+08 * | 9.744e+07 * | n/a |
-| 2D | exp(x+y) | 1.864e+04 | 2.438e+04 | 5720.0000 | n/a | 8.769e+04 | 4.420e+04 | 3.861e+04 | 9.402e+07 * | 8.362e+07 | 6.697e+04 | n/a |
-| 2D | x^2 + y^2 | 2678.0000 | 2153.0000 | 1968.0000 | n/a | 9986.0000 | 5980.0000 | 9098.0000 | 8.497e+07 * | 7.713e+07 | 6.858e+04 | n/a |
-| 3D | 1/sqrt((1-x^2)(1-y^2)(1-z^2)) | 1.168e+05 | 1.153e+05 | 7.367e+04 | n/a | 3.339e+07 * | 3.151e+07 * | 5400.0000 * | 1.320e+08 * | 1.391e+08 * | 1.111e+08 * | n/a |
-| 3D | exp(x+y+z) | 1.049e+06 | 1.069e+06 | 3.401e+05 | n/a | 3.619e+05 | 3.170e+05 | 7.207e+05 | 1.178e+08 * | 1.283e+08 * | 1.795e+05 | n/a |
-| 3D | x^2*y^2*z^2 | 7.994e+04 | 7.634e+04 | 2.207e+04 | n/a | 1.345e+07 | 8.682e+06 | 2.441e+04 | 1.055e+08 * | 1.318e+08 * | 4.454e+07 | n/a |
+| 1D | 1/(1+25x^2) | 711.0000 | 694.0000 | 387.0000 | 545.0000 | 1.551e+04 | 1.238e+04 | 1.492e+04 | n/a | n/a | n/a | 113.0000 |
+| 1D | 1/sqrt(1-x^2) | 597.0000 | 453.0000 | 309.0000 | 7351.0000 | 2.061e+05 | 2.839e+05 | 1164.0000 * | n/a | n/a | n/a | 1.294e+04 * |
+| 1D | log(1-x) | 1180.0000 | 531.0000 | 403.0000 | 3932.0000 | 5.093e+04 | 6.568e+04 | 1437.0000 * | n/a | n/a | n/a | 1.199e+04 |
+| 1D | sin^2(1000x) | 1.548e+05 | 2.860e+05 | 2.855e+04 | 1.020e+04 | 1.014e+05 | 9.308e+04 | 1089.0000 * | n/a | n/a | n/a | 3.402e+04 |
+| 1D | x^6 - 2x^3 + 0.5 | 1065.0000 | 608.0000 | 372.0000 | 436.0000 | 4320.0000 | 2215.0000 | 3752.0000 | n/a | n/a | n/a | 72.0000 |
+| 2D | 1/sqrt((1-x^2)(1-y^2)) | 2612.0000 | 2796.0000 | 1840.0000 | n/a | 5.560e+07 | 2.611e+07 | 1972.0000 * | 7.539e+07 * | 9.310e+07 * | 7.375e+07 * | n/a |
+| 2D | exp(x+y) | 1.653e+04 | 1.786e+04 | 5241.0000 | n/a | 1.254e+05 | 4.318e+04 | 3.683e+04 | 8.878e+07 * | 8.181e+07 | 6.532e+04 | n/a |
+| 2D | x^2 + y^2 | 2612.0000 | 3541.0000 | 1100.0000 | n/a | 5709.0000 | 2222.0000 | 5633.0000 | 8.446e+07 * | 7.947e+07 | 5.554e+04 | n/a |
+| 3D | 1/sqrt((1-x^2)(1-y^2)(1-z^2)) | 8.183e+04 | 8.129e+04 | 1.902e+05 | n/a | 3.347e+07 * | 2.373e+07 * | 4049.0000 * | 1.314e+08 * | 1.257e+08 * | 1.130e+08 * | n/a |
+| 3D | exp(x+y+z) | 9.342e+05 | 9.459e+05 | 9.456e+05 | n/a | 3.523e+05 | 2.684e+05 | 6.155e+05 | 1.156e+08 * | 1.219e+08 * | 1.385e+05 | n/a |
+| 3D | x^2*y^2*z^2 | 5.733e+04 | 5.860e+04 | 1.158e+04 | n/a | 1.086e+07 | 7.414e+06 | 2.071e+04 | 1.198e+08 * | 1.293e+08 * | 3.862e+07 | n/a |
 
 `*` indicates the method did not meet the requested tolerance on that case.
 `FTS avx` uses the `N` inferred from adaptive FTS convergence.
@@ -77,6 +84,8 @@ Raw output files are generated at:
 
 This summary shows speedup of `FTS quad` and `FTS avx`
 relative to the fastest accurate competing method on each benchmark case.
+It also overlays `FTS avx` from Julia 1.12 (LoopVectorization-active) as a
+separate marker so the version-dependent SIMD behavior is explicit.
 Values greater than 1 indicate faster performance.
 
 ![Benchmark speedup summary](assets/benchmark_summary.svg)

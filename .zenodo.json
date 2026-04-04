@@ -1,0 +1,23 @@
+{
+  "title": "FastTanhSinhQuadrature.jl",
+  "description": "High-performance Tanh-Sinh (double exponential) numerical integration in Julia with SIMD-accelerated and adaptive interfaces.",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "GPL-3.0-or-later",
+  "language": "eng",
+  "version": "1.0.1",
+  "keywords": [
+    "Julia",
+    "numerical integration",
+    "quadrature",
+    "tanh-sinh",
+    "SIMD"
+  ],
+  "creators": [
+    {
+      "name": "Vretinaris, Stamatis",
+      "orcid": "0000-0001-7575-813X",
+      "affiliation": "Radboud University; Max Planck Institute for Gravitational Physics; Leibniz University Hannover"
+    }
+  ]
+}

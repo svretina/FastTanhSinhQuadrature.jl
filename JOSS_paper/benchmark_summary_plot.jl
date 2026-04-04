@@ -3,6 +3,7 @@ using LaTeXStrings
 
 const QUAD_COLOR = RGBAf(0.0, 0.447, 0.698, 1.0)
 const AVX_COLOR = RGBAf(0.835, 0.369, 0.0, 1.0)
+const AVX_LV_COLOR = RGBAf(0.067, 0.467, 0.2, 1.0)
 const LINK_COLOR = RGBAf(0.55, 0.55, 0.55, 0.7)
 
 struct BenchmarkRow
@@ -19,6 +20,7 @@ struct CaseSummary
     baseline::String
     quad_speedup::Float64
     avx_speedup::Float64
+    avx_lv_speedup::Float64
 end
 
 function read_rows(path::AbstractString)
@@ -88,12 +90,21 @@ function case_label(summary::CaseSummary)
     return latexstring(case_expr_tex(summary.fname), raw"\;[", baseline_tex(summary.baseline), raw"]")
 end
 
-function summarize(rows)
+@inline _group_rows(rows) = begin
     grouped = Dict{Tuple{String, String}, Vector{BenchmarkRow}}()
     for row in rows
         key = (row.dim, row.fname)
         push!(get!(grouped, key, BenchmarkRow[]), row)
     end
+    grouped
+end
+
+@inline _lookup_method(rows::Vector{BenchmarkRow}, method::String) =
+    only(filter(r -> r.method == method, rows))
+
+function summarize(rows; lv_rows=nothing)
+    grouped = _group_rows(rows)
+    grouped_lv = lv_rows === nothing ? nothing : _group_rows(lv_rows)
 
     summaries = CaseSummary[]
     for case in sort(collect(keys(grouped)); by=benchmark_order)
@@ -103,8 +114,18 @@ function summarize(rows)
 
         baseline_ix = findmin(r -> r.time_ns, others)[2]
         baseline = others[baseline_ix]
-        quad_row = only(filter(r -> r.method == "FTS quad (convenience)", case_rows))
-        avx_row = only(filter(r -> r.method == "FTS avx (precomputed)", case_rows))
+        quad_row = _lookup_method(case_rows, "FTS quad (convenience)")
+        avx_row = _lookup_method(case_rows, "FTS avx (precomputed)")
+        avx_lv_speedup = NaN
+
+        if grouped_lv !== nothing && haskey(grouped_lv, case)
+            case_rows_lv = grouped_lv[case]
+            lv_baseline = filter(r -> r.method == baseline.method && r.status == "ok", case_rows_lv)
+            lv_avx = filter(r -> r.method == "FTS avx (precomputed)" && r.status == "ok", case_rows_lv)
+            if !isempty(lv_baseline) && !isempty(lv_avx)
+                avx_lv_speedup = lv_baseline[1].time_ns / lv_avx[1].time_ns
+            end
+        end
 
         push!(summaries, CaseSummary(
             case[1],
@@ -112,6 +133,7 @@ function summarize(rows)
             baseline.method,
             baseline.time_ns / quad_row.time_ns,
             baseline.time_ns / avx_row.time_ns,
+            avx_lv_speedup,
         ))
     end
     return summaries
@@ -174,8 +196,9 @@ function plot_summary(summaries::Vector{CaseSummary})
 
         labels = case_label.(sub)
         y = collect(1:length(sub))
-        yq = y .+ 0.12
-        ya = y .- 0.12
+        yq = y .+ 0.18
+        ya = y
+        yalv = y .- 0.18
 
         ax = Axis(
             fig[rowid, 1],
@@ -208,9 +231,24 @@ function plot_summary(summaries::Vector{CaseSummary})
             marker=:circle, markersize=20, label=L"\mathrm{FastTanhSinh\;quad}")
         avx_handle = scatter!(ax, getfield.(sub, :avx_speedup), ya;
             color=AVX_COLOR, strokecolor=:black, strokewidth=1.2,
-            marker=:utriangle, markersize=23, label=L"\mathrm{FastTanhSinh\;integrate^{\ast}_{avx}}")
+            marker=:utriangle, markersize=23,
+            label=L"\mathrm{FastTanhSinh\;integrate^{\ast}_{avx}\;(newer\ Julia)}")
 
-        legend_handles === nothing && (legend_handles = (quad_handle, avx_handle))
+        lv_speedups = getfield.(sub, :avx_lv_speedup)
+        lv_idx = findall(isfinite, lv_speedups)
+        avx_lv_handle = nothing
+        if !isempty(lv_idx)
+            avx_lv_handle = scatter!(ax, lv_speedups[lv_idx], yalv[lv_idx];
+                color=:white, strokecolor=AVX_LV_COLOR, strokewidth=2.5,
+                marker=:rect, markersize=18,
+                label=L"\mathrm{FastTanhSinh\;integrate^{\ast}_{avx}\;(Julia\ 1.12,\ LV)}")
+        end
+
+        if legend_handles === nothing
+            legend_handles = avx_lv_handle === nothing ?
+                             (quad_handle, avx_handle) :
+                             (quad_handle, avx_handle, avx_lv_handle)
+        end
 
         xlims!(ax, 0.07, 1.0e4)
         ylims!(ax, 0.5, length(sub) + 0.6)
@@ -224,9 +262,17 @@ function plot_summary(summaries::Vector{CaseSummary})
     end
 
     if legend_handles !== nothing
-        Legend(fig[4, 1], [legend_handles[1], legend_handles[2]],
-            [L"\mathrm{Adaptive\ convenience\ path}", L"\mathrm{Precomputed\ SIMD\ path}"];
-            orientation=:horizontal, nbanks=2, tellwidth=false, labelsize=21)
+        if length(legend_handles) == 3
+            Legend(fig[4, 1], [legend_handles[1], legend_handles[2], legend_handles[3]],
+                [L"\mathrm{Adaptive\ convenience\ path}",
+                 L"\mathrm{Precomputed\ SIMD\ path\ (newer\ Julia)}",
+                 L"\mathrm{Precomputed\ SIMD\ path\ (Julia\ 1.12,\ LV)}"];
+                orientation=:horizontal, nbanks=3, tellwidth=false, labelsize=20)
+        else
+            Legend(fig[4, 1], [legend_handles[1], legend_handles[2]],
+                [L"\mathrm{Adaptive\ convenience\ path}", L"\mathrm{Precomputed\ SIMD\ path}"];
+                orientation=:horizontal, nbanks=2, tellwidth=false, labelsize=21)
+        end
     end
     rowgap!(fig.layout, 8)
     return fig
@@ -235,8 +281,10 @@ end
 function main()
     repo_root = normpath(joinpath(@__DIR__, ".."))
     csv_path = joinpath(repo_root, "benchmark", "results", "timings.csv")
+    csv_lv_path = joinpath(repo_root, "benchmark", "results", "timings_julia1.12.csv")
     rows = read_rows(csv_path)
-    summaries = summarize(rows)
+    lv_rows = isfile(csv_lv_path) ? read_rows(csv_lv_path) : nothing
+    summaries = summarize(rows; lv_rows=lv_rows)
     fig = plot_summary(summaries)
 
     docs_assets = joinpath(repo_root, "docs", "src", "assets")

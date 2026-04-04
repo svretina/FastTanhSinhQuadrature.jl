@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'JOSS_paper/**'
+  workflow_dispatch:
 
 jobs:
   paper:

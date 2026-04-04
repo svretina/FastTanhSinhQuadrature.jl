@@ -15,6 +15,12 @@
 
 Fast and high-precision numerical integration using **Tanh-Sinh (Double Exponential) quadrature** in Julia.
 
+## Reproducibility
+
+For exact, command-level reproduction of the JOSS paper artifacts (tests,
+benchmarks, figures, and PDF workflow), see
+[`REPRODUCIBILITY.md`](REPRODUCIBILITY.md).
+
 ## Overview
 
 `FastTanhSinhQuadrature.jl` is designed for high-performance numerical integration, particularly effective for functions with endpoint singularities. It combines the rigorous accuracy of Tanh-Sinh quadrature with modern Julia performance features like SIMD acceleration.
