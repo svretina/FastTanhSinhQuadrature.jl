@@ -39,8 +39,9 @@ end
 
 @inline _error_target(I::T, rtol::T, atol::T) where {T<:Real} = max(atol, rtol * abs(I))
 
-@inline function _needs_generic_hyperbolics(::Type{T}) where {T<:Real}
-    return nameof(T) === :MultiFloat && nameof(parentmodule(T)) === :MultiFloats
+@generated function _needs_generic_hyperbolics(::Type{T}) where {T<:Real}
+    is_multifloat = nameof(T) === :MultiFloat && nameof(parentmodule(T)) === :MultiFloats
+    return is_multifloat ? :(true) : :(false)
 end
 
 @inline function _asinh_generic(x::T) where {T<:Real}
@@ -271,15 +272,11 @@ function _build_adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol) wher
     half = _half(T)
     h = tm * half
 
-    initial_x = ntuple(Val(2)) do i
-        ordinate(T(i) * h)
-    end
-    initial_w = ntuple(Val(2)) do i
-        weight(T(i) * h)
-    end
-    initial_c = ntuple(Val(2)) do i
-        ordinate_complement(T(i) * h)
-    end
+    h1 = h
+    h2 = h + h
+    initial_x = (ordinate(h1), ordinate(h2))
+    initial_w = (weight(h1), weight(h2))
+    initial_c = (ordinate_complement(h1), ordinate_complement(h2))
 
     xs = Vector{Vector{T}}(undef, max_levels)
     ws = Vector{Vector{T}}(undef, max_levels)
@@ -346,12 +343,10 @@ function _build_adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where 
     half = _half(T)
     h = tm * half
 
-    initial_x = ntuple(Val(2)) do i
-        ordinate(T(i) * h)
-    end
-    initial_w = ntuple(Val(2)) do i
-        weight(T(i) * h)
-    end
+    h1 = h
+    h2 = h + h
+    initial_x = (ordinate(h1), ordinate(h2))
+    initial_w = (weight(h1), weight(h2))
 
     xs = Vector{Vector{T}}(undef, max_levels)
     ws = Vector{Vector{T}}(undef, max_levels)
