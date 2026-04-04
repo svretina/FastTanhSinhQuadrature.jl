@@ -42,6 +42,7 @@ export tanhsinh, quad, quad_split, quad_cmpl,
     integrate1D, integrate2D, integrate3D,
     integrate1D_avx, integrate2D_avx, integrate3D_avx,
     adaptive_integrate_1D, adaptive_integrate_2D, adaptive_integrate_3D,
-    adaptive_integrate_1D_cmpl
+    adaptive_integrate_1D_cmpl,
+    adaptive_cache_1D, adaptive_cache_2D, adaptive_cache_3D
 
 end

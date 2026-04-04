@@ -16,7 +16,10 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
-        "Theory" => "theory.md",
+        "Theory" => [
+            "Overview" => "theory.md",
+            "Error Models and Node Estimates" => "theory/error_models.md",
+        ],
         "Convergence" => "convergence.md",
         "Examples" => [
             "Basic Usage" => "examples/basics.md",

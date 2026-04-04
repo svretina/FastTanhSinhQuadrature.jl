@@ -14,6 +14,22 @@ quad_split
 quad_cmpl
 ```
 
+## Tolerances and Fixed-Grid Interfaces
+
+- `quad`, `quad_split`, and `quad_cmpl` are adaptive interfaces.
+- Their stopping criterion is based on successive refinement levels:
+  `err_est = abs(I_new - I_old)`, and refinement stops when
+  `err_est <= max(atol, rtol * abs(I_new))`.
+- If `rtol` is omitted and `atol == 0`, the default is `rtol = sqrt(eps(T))`,
+  where `T` is the promoted floating-point endpoint type.
+- For repeated calls, prebuild adaptive caches and pass `cache=...` to
+  `quad` / `quad_split` / `quad_cmpl` or `adaptive_integrate_*` directly.
+- `integrate1D`, `integrate1D_avx`, `integrate2D`, `integrate2D_avx`,
+  `integrate3D`, and `integrate3D_avx` are fixed-grid interfaces.
+- Fixed-grid interfaces do not estimate error internally; choose `N`
+  externally, for example by doubling `N` until two successive results meet
+  the same `max(atol, rtol * abs(I))` criterion.
+
 ## 1D Integration
 
 Functions for integrating over 1D domains using pre-computed nodes and weights.
@@ -49,6 +65,14 @@ adaptive_integrate_3D
 
 ```@docs
 tanhsinh
+```
+
+## Adaptive Cache Utilities
+
+```@docs
+adaptive_cache_1D
+adaptive_cache_2D
+adaptive_cache_3D
 ```
 
 ## Bounds and Containers

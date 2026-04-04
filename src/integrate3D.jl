@@ -239,7 +239,7 @@ function integrate3D_avx(f::S, low::SVector{3,T}, up::SVector{3,T},
         Δy, y₀ = _midpoint_radius(low[2], up[2])
         Δz, z₀ = _midpoint_radius(low[3], up[3])
         w₀ = T(π) / 2
-        w₀² = w₀^2
+        w₀² = w₀ * w₀
         w₀³ = w₀² * w₀
         total_sum = w₀³ * f(x₀, y₀, z₀)
 

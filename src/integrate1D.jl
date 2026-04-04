@@ -54,10 +54,9 @@ function integrate1D_cmpl(::Type{T}, f::F, N::Int) where {T<:Real,F}
         xi = x[i]
         # 1 - xi = ordinate_complement(ti)
         # However, for N-point fixed grid, we might just use the ordinate_complement logic
-        # But wait, tanhsinh(T, N) only returns x. 
+        # But tanhsinh(T, N) only returns x. 
         # For simplicity in this fixed-N version, we use the standard complement.
         # Fixed nodes don't easily give us 't' unless we recompute.
-        # Let's assume user wants accuracy.
         one_minus_x = one(T) - xi
         one_plus_x = one(T) + xi
         s += w[i] * (f(xi, one_minus_x, one_plus_x) + f(-xi, one_plus_x, one_minus_x))
@@ -70,6 +69,7 @@ end
     integrate1D(f, x, w, h)
 
 Calculate the integral of `f` over `[-1, 1]` using pre-computed nodes `x`, weights `w`, and step size `h`.
+This is a fixed-grid interface: it does not estimate error or accept `rtol`/`atol`.
 """
 function integrate1D(f::X, x::AbstractVector{T}, w::AbstractVector{T},
     h::T) where {T<:Real,X}
@@ -85,6 +85,7 @@ end
     integrate1D(f, low, up, x, w, h)
 
 Calculate the integral of `f` over `[low, up]` using pre-computed nodes `x`, weights `w`, and step size `h`.
+This is a fixed-grid interface: it does not estimate error or accept `rtol`/`atol`.
 """
 function integrate1D(f::S, low::T, up::T, x::X,
     w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
@@ -116,6 +117,9 @@ end
 
 SIMD-accelerated 1D integration over `[-1, 1]` Using `LoopVectorization`. 
 Requires `f` to be compatible with `@turbo`. Only beneficial for `Float32/Float64`.
+This is a fixed-grid interface: choose the number of nodes `N` externally and
+monitor convergence yourself (for example by doubling `N` until two successive
+results satisfy your desired `rtol`/`atol` criterion).
 """
 function integrate1D_avx(f::S, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
     s = weight(zero(T)) * f(zero(T))
@@ -129,6 +133,7 @@ end
     integrate1D_avx(f, low, up, x, w, h)
 
 SIMD-accelerated 1D integration over `[low, up]` Using `LoopVectorization`.
+This is a fixed-grid interface and does not estimate error internally.
 """
 function integrate1D_avx(f::S, low::T, up::T, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
     Δx, x₀ = _midpoint_radius(low, up)

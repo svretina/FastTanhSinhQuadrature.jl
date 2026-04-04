@@ -15,44 +15,34 @@ const CUBA_MINEVALS = 2_000
 const BENCH_SAMPLES = 3
 const BENCH_EVALS = 1
 
-const LOW1 = -1.0
-const UP1 = 1.0
-const LOW2 = SVector(-1.0, -1.0)
-const UP2 = SVector(1.0, 1.0)
-const LOW3 = SVector(-1.0, -1.0, -1.0)
-const UP3 = SVector(1.0, 1.0, 1.0)
-const LOW1_VEC = [LOW1]
-const UP1_VEC = [UP1]
-const LOW2_VEC = collect(LOW2)
-const UP2_VEC = collect(UP2)
-const LOW3_VEC = collect(LOW3)
-const UP3_VEC = collect(UP3)
-
-const CANDIDATES_AVX_1D = [8, 12, 16, 24, 32, 48, 64, 80, 120, 160, 240, 320, 480, 640]
-const CANDIDATES_AVX_2D = [8, 12, 16, 24, 32, 40, 48, 64, 80, 96, 120, 160]
-const CANDIDATES_AVX_3D = [4, 6, 8, 10, 12, 16, 20, 24, 32, 40, 48, 64]
+const ADAPTIVE_MAX_LEVELS_1D = 12
+const ADAPTIVE_MAX_LEVELS_2D = 9
+const ADAPTIVE_MAX_LEVELS_3D = 7
 const CANDIDATES_GQ_1D = [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 
-struct Problem{F}
+struct Problem{F,B}
     dim::Int
     name::String
     f::F
     exact::Float64
+    low::B
+    up::B
 end
 
 const PROBLEMS = [
-    Problem(1, "x^6 - 2x^3 + 0.5", x -> x^6 - 2x^3 + 0.5, 9 / 7),
-    Problem(1, "1/(1+25x^2)", x -> 1 / (1 + 25x^2), 2 * atan(5.0) / 5),
-    Problem(1, "log(1-x)", x -> log(1 - x), 2 * log(2.0) - 2),
-    Problem(1, "1/sqrt(1-x^2)", x -> 1 / sqrt(1 - x^2), Float64(pi)),
-    Problem(2, "exp(x+y)", (x, y) -> exp(x + y), (exp(1.0) - exp(-1.0))^2),
-    Problem(2, "x^2 + y^2", (x, y) -> x^2 + y^2, 8 / 3),
+    Problem(1, "x^6 - 2x^3 + 0.5", x -> x^6 - 2x^3 + 0.5, 9 / 7, -1.0, 1.0),
+    Problem(1, "1/(1+25x^2)", x -> 1 / (1 + 25x^2), 2 * atan(5.0) / 5, -1.0, 1.0),
+    Problem(1, "log(1-x)", x -> log(1 - x), 2 * log(2.0) - 2, -1.0, 1.0),
+    Problem(1, "1/sqrt(1-x^2)", x -> 1 / sqrt(1 - x^2), Float64(pi), -1.0, 1.0),
+    Problem(1, "sin^2(1000x)", x -> sin(1000 * x)^2, Float64(pi), -Float64(pi), Float64(pi)),
+    Problem(2, "exp(x+y)", (x, y) -> exp(x + y), (exp(1.0) - exp(-1.0))^2, SVector(-1.0, -1.0), SVector(1.0, 1.0)),
+    Problem(2, "x^2 + y^2", (x, y) -> x^2 + y^2, 8 / 3, SVector(-1.0, -1.0), SVector(1.0, 1.0)),
     Problem(2, "1/sqrt((1-x^2)(1-y^2))",
-        (x, y) -> 1 / sqrt((1 - x^2) * (1 - y^2)), Float64(pi^2)),
-    Problem(3, "exp(x+y+z)", (x, y, z) -> exp(x + y + z), (exp(1.0) - exp(-1.0))^3),
-    Problem(3, "x^2*y^2*z^2", (x, y, z) -> x^2 * y^2 * z^2, 8 / 27),
+        (x, y) -> 1 / sqrt((1 - x^2) * (1 - y^2)), Float64(pi^2), SVector(-1.0, -1.0), SVector(1.0, 1.0)),
+    Problem(3, "exp(x+y+z)", (x, y, z) -> exp(x + y + z), (exp(1.0) - exp(-1.0))^3, SVector(-1.0, -1.0, -1.0), SVector(1.0, 1.0, 1.0)),
+    Problem(3, "x^2*y^2*z^2", (x, y, z) -> x^2 * y^2 * z^2, 8 / 27, SVector(-1.0, -1.0, -1.0), SVector(1.0, 1.0, 1.0)),
     Problem(3, "1/sqrt((1-x^2)(1-y^2)(1-z^2))",
-        (x, y, z) -> 1 / sqrt((1 - x^2) * (1 - y^2) * (1 - z^2)), Float64(pi^3)),
+        (x, y, z) -> 1 / sqrt((1 - x^2) * (1 - y^2) * (1 - z^2)), Float64(pi^3), SVector(-1.0, -1.0, -1.0), SVector(1.0, 1.0, 1.0)),
 ]
 
 @inline dim_label(dim::Int) = dim == 1 ? "1D" : (dim == 2 ? "2D" : "3D")
@@ -71,6 +61,93 @@ function integrate_gauss_precomputed(f::Function, x::AbstractVector{T},
         s += w[i] * f(x[i])
     end
     return s
+end
+
+function integrate_gauss_precomputed(f::Function, low::T, up::T,
+    x::AbstractVector{T}, w::AbstractVector{T}) where {T<:Real}
+    Δx, x₀ = (up - low) / 2, (up + low) / 2
+    s = zero(T)
+    @inbounds for i in eachindex(x)
+        s += w[i] * f(x₀ + Δx * x[i])
+    end
+    return Δx * s
+end
+
+@inline bounds_vec(prob::Problem{F,SVector{N,T}}) where {F,N,T} =
+    (collect(prob.low), collect(prob.up))
+@inline bounds_vec(prob::Problem{F,Float64}) where {F} = ([prob.low], [prob.up])
+
+@inline adaptive_max_levels(dim::Int) = dim == 1 ? ADAPTIVE_MAX_LEVELS_1D :
+                                         dim == 2 ? ADAPTIVE_MAX_LEVELS_2D :
+                                         ADAPTIVE_MAX_LEVELS_3D
+
+function adaptive_cache_for_problem(prob::Problem)
+    max_levels = adaptive_max_levels(prob.dim)
+    if prob.dim == 1
+        return adaptive_cache_1D(Float64; max_levels=max_levels)
+    elseif prob.dim == 2
+        return adaptive_cache_2D(Float64; max_levels=max_levels)
+    else
+        return adaptive_cache_3D(Float64; max_levels=max_levels)
+    end
+end
+
+function adaptive_result_at_level(prob::Problem, level::Int, cache)
+    level >= 0 || throw(ArgumentError("level must be nonnegative"))
+    if prob.dim == 1
+        return adaptive_integrate_1D(
+            Float64, prob.f, prob.low, prob.up; rtol=0.0, atol=0.0, max_levels=level, warn=false, cache=cache
+        )
+    elseif prob.dim == 2
+        return adaptive_integrate_2D(
+            Float64, prob.f, prob.low, prob.up; rtol=0.0, atol=0.0, max_levels=level, warn=false, cache=cache
+        )
+    else
+        return adaptive_integrate_3D(
+            Float64, prob.f, prob.low, prob.up; rtol=0.0, atol=0.0, max_levels=level, warn=false, cache=cache
+        )
+    end
+end
+
+function adaptive_converged_grid(prob::Problem; cache)
+    max_levels = adaptive_max_levels(prob.dim)
+    prev = adaptive_result_at_level(prob, 0, cache)
+    for level in 1:max_levels
+        curr = adaptive_result_at_level(prob, level, cache)
+        target = max(ATOL, RTOL * abs(curr))
+        if abs(curr - prev) <= target
+            N = 1 << (level + 2)  # N=2n with n=2^(level+1)
+            return (level=level, N=N, value=Float64(curr), converged=true)
+        end
+        prev = curr
+    end
+    N = 1 << (max_levels + 2)
+    return (level=max_levels, N=N, value=Float64(prev), converged=false)
+end
+
+function avx_config_at_N(prob::Problem, N::Int)
+    x, w, h = tanhsinh(Float64, N)
+    val = if prob.dim == 1
+        integrate1D_avx(prob.f, prob.low, prob.up, x, w, h)
+    elseif prob.dim == 2
+        integrate2D_avx(prob.f, prob.low, prob.up, x, w, h)
+    else
+        integrate3D_avx(prob.f, prob.low, prob.up, x, w, h)
+    end
+    return (N=N, x=x, w=w, h=h, val=Float64(val))
+end
+
+function calibrate_gq_1d(prob::Problem)
+    best = nothing
+    for N in CANDIDATES_GQ_1D
+        x, w = gausslegendre(N)
+        val = integrate_gauss_precomputed(prob.f, prob.low, prob.up, x, w)
+        best = (N=N, x=x, w=w, val=Float64(val))
+        if isfinite(best.val) && abs(best.val - prob.exact) <= tol_target(prob.exact)
+            return best, true
+        end
+    end
+    return best, false
 end
 
 function evaluate_method(dim::Int, fname::String, method::String, exact::Float64,
@@ -92,116 +169,100 @@ function evaluate_method(dim::Int, fname::String, method::String, exact::Float64
     end
 end
 
-function calibrate_avx(prob::Problem)
-    candidates = prob.dim == 1 ? CANDIDATES_AVX_1D :
-                 prob.dim == 2 ? CANDIDATES_AVX_2D : CANDIDATES_AVX_3D
-    best = nothing
-    for n in candidates
-        x, w, h = tanhsinh(Float64, n)
-        val = if prob.dim == 1
-            integrate1D_avx(prob.f, x, w, h)
-        elseif prob.dim == 2
-            integrate2D_avx(prob.f, LOW2, UP2, x, w, h)
-        else
-            integrate3D_avx(prob.f, x, w, h)
-        end
-        best = (n=n, x=x, w=w, h=h, val=Float64(val))
-        if isfinite(best.val) && abs(best.val - prob.exact) <= tol_target(prob.exact)
-            return best, true
-        end
-    end
-    return best, false
-end
-
-function calibrate_gq_1d(prob::Problem)
-    best = nothing
-    for n in CANDIDATES_GQ_1D
-        x, w = gausslegendre(n)
-        val = integrate_gauss_precomputed(prob.f, x, w)
-        best = (n=n, x=x, w=w, val=Float64(val))
-        if isfinite(best.val) && abs(best.val - prob.exact) <= tol_target(prob.exact)
-            return best, true
-        end
-    end
-    return best, false
-end
-
 function benchmark_problem(prob::Problem)
     rows = NamedTuple[]
 
     if prob.dim == 1
         f = prob.f
-        low, up = LOW1, UP1
+        low, up = prob.low, prob.up
+        max_levels = adaptive_max_levels(1)
+        adapt_cache = adaptive_cache_for_problem(prob)
 
-        run_adapt = () -> adaptive_integrate_1D(Float64, f, low, up; tol=RTOL, max_levels=12)
+        run_adapt = () -> adaptive_integrate_1D(
+            Float64, f, low, up; rtol=RTOL, atol=ATOL, max_levels=max_levels, cache=adapt_cache
+        )
         push!(rows, evaluate_method(1, prob.name, "FTS adaptive (typed)", prob.exact, run_adapt))
 
-        run_quad = () -> quad(f, low, up; tol=RTOL, max_levels=12)
+        run_quad = () -> quad(f, low, up; rtol=RTOL, atol=ATOL, max_levels=max_levels, cache=adapt_cache)
         push!(rows, evaluate_method(1, prob.name, "FTS quad (convenience)", prob.exact, run_quad))
 
-        avx_cfg, avx_ok = calibrate_avx(prob)
-        run_avx = () -> integrate1D_avx(f, avx_cfg.x, avx_cfg.w, avx_cfg.h)
-        note_avx = avx_ok ? "n=$(avx_cfg.n)" : "n=$(avx_cfg.n), tol_not_met"
+        adapt_grid = adaptive_converged_grid(prob; cache=adapt_cache)
+        avx_cfg = avx_config_at_N(prob, adapt_grid.N)
+        run_avx = () -> integrate1D_avx(f, low, up, avx_cfg.x, avx_cfg.w, avx_cfg.h)
+        note_avx = adapt_grid.converged ?
+                   "N=$(avx_cfg.N), adaptive_level=$(adapt_grid.level)" :
+                   "N=$(avx_cfg.N), adaptive_level=$(adapt_grid.level), max_levels_reached"
         push!(rows, evaluate_method(1, prob.name, "FTS avx (precomputed)", prob.exact, run_avx; notes=note_avx))
 
         run_qgk = () -> first(quadgk(f, low, up; rtol=RTOL, atol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(1, prob.name, "QuadGK", prob.exact, run_qgk))
 
+        low_vec, up_vec = bounds_vec(prob)
         fv_hc = v -> f(v[1])
-        run_hcub = () -> first(HCubature.hcubature(fv_hc, LOW1_VEC, UP1_VEC;
+        run_hcub = () -> first(HCubature.hcubature(fv_hc, low_vec, up_vec;
             rtol=RTOL, atol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(1, prob.name, "HCubature", prob.exact, run_hcub))
 
         fv_hcub = v -> f(v[1])
-        run_hcub_jl = () -> first(Cubature.hcubature(fv_hcub, LOW1_VEC, UP1_VEC;
+        run_hcub_jl = () -> first(Cubature.hcubature(fv_hcub, low_vec, up_vec;
             reltol=RTOL, abstol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(1, prob.name, "CubatureJLh", prob.exact, run_hcub_jl))
 
         fv_pcub = v -> f(v[1])
-        run_pcub_jl = () -> first(Cubature.pcubature(fv_pcub, LOW1_VEC, UP1_VEC;
+        run_pcub_jl = () -> first(Cubature.pcubature(fv_pcub, low_vec, up_vec;
             reltol=RTOL, abstol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(1, prob.name, "CubatureJLp", prob.exact, run_pcub_jl))
 
         gq_cfg, gq_ok = calibrate_gq_1d(prob)
-        run_gq = () -> integrate_gauss_precomputed(f, gq_cfg.x, gq_cfg.w)
-        note_gq = gq_ok ? "n=$(gq_cfg.n)" : "n=$(gq_cfg.n), tol_not_met"
+        run_gq = () -> integrate_gauss_precomputed(f, low, up, gq_cfg.x, gq_cfg.w)
+        note_gq = gq_ok ? "N=$(gq_cfg.N), independently calibrated for tolerance" :
+                  "N=$(gq_cfg.N), tol_not_met"
         push!(rows, evaluate_method(1, prob.name, "FastGauss (precomputed)", prob.exact, run_gq; notes=note_gq))
 
     elseif prob.dim == 2
         f = prob.f
-        low, up = LOW2, UP2
+        low, up = prob.low, prob.up
+        max_levels = adaptive_max_levels(2)
+        adapt_cache = adaptive_cache_for_problem(prob)
 
-        run_adapt = () -> adaptive_integrate_2D(Float64, f, low, up; tol=RTOL, max_levels=9)
+        run_adapt = () -> adaptive_integrate_2D(
+            Float64, f, low, up; rtol=RTOL, atol=ATOL, max_levels=max_levels, cache=adapt_cache
+        )
         push!(rows, evaluate_method(2, prob.name, "FTS adaptive (typed)", prob.exact, run_adapt))
 
-        run_quad = () -> quad(f, low, up; tol=RTOL, max_levels=9)
+        run_quad = () -> quad(f, low, up; rtol=RTOL, atol=ATOL, max_levels=max_levels, cache=adapt_cache)
         push!(rows, evaluate_method(2, prob.name, "FTS quad (convenience)", prob.exact, run_quad))
 
-        avx_cfg, avx_ok = calibrate_avx(prob)
+        adapt_grid = adaptive_converged_grid(prob; cache=adapt_cache)
+        avx_cfg = avx_config_at_N(prob, adapt_grid.N)
         run_avx = () -> integrate2D_avx(f, low, up, avx_cfg.x, avx_cfg.w, avx_cfg.h)
-        note_avx = avx_ok ? "n=$(avx_cfg.n)" : "n=$(avx_cfg.n), tol_not_met"
+        note_avx = adapt_grid.converged ?
+                   "N=$(avx_cfg.N), adaptive_level=$(adapt_grid.level)" :
+                   "N=$(avx_cfg.N), adaptive_level=$(adapt_grid.level), max_levels_reached"
         push!(rows, evaluate_method(2, prob.name, "FTS avx (precomputed)", prob.exact, run_avx; notes=note_avx))
 
+        low_vec, up_vec = bounds_vec(prob)
         fv_hc = v -> f(v[1], v[2])
-        run_hcub = () -> first(HCubature.hcubature(fv_hc, LOW2_VEC, UP2_VEC;
+        run_hcub = () -> first(HCubature.hcubature(fv_hc, low_vec, up_vec;
             rtol=RTOL, atol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(2, prob.name, "HCubature", prob.exact, run_hcub))
 
         fv_hcub = v -> f(v[1], v[2])
-        run_hcub_jl = () -> first(Cubature.hcubature(fv_hcub, LOW2_VEC, UP2_VEC;
+        run_hcub_jl = () -> first(Cubature.hcubature(fv_hcub, low_vec, up_vec;
             reltol=RTOL, abstol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(2, prob.name, "CubatureJLh", prob.exact, run_hcub_jl))
 
         fv_pcub = v -> f(v[1], v[2])
-        run_pcub_jl = () -> first(Cubature.pcubature(fv_pcub, LOW2_VEC, UP2_VEC;
+        run_pcub_jl = () -> first(Cubature.pcubature(fv_pcub, low_vec, up_vec;
             reltol=RTOL, abstol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(2, prob.name, "CubatureJLp", prob.exact, run_pcub_jl))
 
         run_cuba_vegas = () -> begin
+            jac = (up[1] - low[1]) * (up[2] - low[2])
             function cuba_f(u, out)
-                x = 2u[1] - 1
-                y = 2u[2] - 1
-                out[1] = 4 * f(x, y)
+                x = low[1] + (up[1] - low[1]) * u[1]
+                y = low[2] + (up[2] - low[2]) * u[2]
+                out[1] = jac * f(x, y)
             end
             out = Cuba.vegas(cuba_f, 2, 1; rtol=RTOL, atol=ATOL,
                 maxevals=MAXEVALS, minevals=CUBA_MINEVALS, flags=0)
@@ -210,10 +271,11 @@ function benchmark_problem(prob::Problem)
         push!(rows, evaluate_method(2, prob.name, "CubaVegas", prob.exact, run_cuba_vegas))
 
         run_cuba_divonne = () -> begin
+            jac = (up[1] - low[1]) * (up[2] - low[2])
             function cuba_f(u, out)
-                x = 2u[1] - 1
-                y = 2u[2] - 1
-                out[1] = 4 * f(x, y)
+                x = low[1] + (up[1] - low[1]) * u[1]
+                y = low[2] + (up[2] - low[2]) * u[2]
+                out[1] = jac * f(x, y)
             end
             out = Cuba.divonne(cuba_f, 2, 1; rtol=RTOL, atol=ATOL,
                 maxevals=MAXEVALS, minevals=CUBA_MINEVALS, flags=0)
@@ -222,10 +284,11 @@ function benchmark_problem(prob::Problem)
         push!(rows, evaluate_method(2, prob.name, "CubaDivonne", prob.exact, run_cuba_divonne))
 
         run_cuba_cuhre = () -> begin
+            jac = (up[1] - low[1]) * (up[2] - low[2])
             function cuba_f(u, out)
-                x = 2u[1] - 1
-                y = 2u[2] - 1
-                out[1] = 4 * f(x, y)
+                x = low[1] + (up[1] - low[1]) * u[1]
+                y = low[2] + (up[2] - low[2]) * u[2]
+                out[1] = jac * f(x, y)
             end
             out = Cuba.cuhre(cuba_f, 2, 1; rtol=RTOL, atol=ATOL,
                 maxevals=MAXEVALS, minevals=0, flags=0)
@@ -235,40 +298,49 @@ function benchmark_problem(prob::Problem)
 
     else
         f = prob.f
-        low, up = LOW3, UP3
+        low, up = prob.low, prob.up
+        max_levels = adaptive_max_levels(3)
+        adapt_cache = adaptive_cache_for_problem(prob)
 
-        run_adapt = () -> adaptive_integrate_3D(Float64, f, low, up; tol=RTOL, max_levels=7)
+        run_adapt = () -> adaptive_integrate_3D(
+            Float64, f, low, up; rtol=RTOL, atol=ATOL, max_levels=max_levels, cache=adapt_cache
+        )
         push!(rows, evaluate_method(3, prob.name, "FTS adaptive (typed)", prob.exact, run_adapt))
 
-        run_quad = () -> quad(f, low, up; tol=RTOL, max_levels=7)
+        run_quad = () -> quad(f, low, up; rtol=RTOL, atol=ATOL, max_levels=max_levels, cache=adapt_cache)
         push!(rows, evaluate_method(3, prob.name, "FTS quad (convenience)", prob.exact, run_quad))
 
-        avx_cfg, avx_ok = calibrate_avx(prob)
-        run_avx = () -> integrate3D_avx(f, avx_cfg.x, avx_cfg.w, avx_cfg.h)
-        note_avx = avx_ok ? "n=$(avx_cfg.n)" : "n=$(avx_cfg.n), tol_not_met"
+        adapt_grid = adaptive_converged_grid(prob; cache=adapt_cache)
+        avx_cfg = avx_config_at_N(prob, adapt_grid.N)
+        run_avx = () -> integrate3D_avx(f, low, up, avx_cfg.x, avx_cfg.w, avx_cfg.h)
+        note_avx = adapt_grid.converged ?
+                   "N=$(avx_cfg.N), adaptive_level=$(adapt_grid.level)" :
+                   "N=$(avx_cfg.N), adaptive_level=$(adapt_grid.level), max_levels_reached"
         push!(rows, evaluate_method(3, prob.name, "FTS avx (precomputed)", prob.exact, run_avx; notes=note_avx))
 
+        low_vec, up_vec = bounds_vec(prob)
         fv_hc = v -> f(v[1], v[2], v[3])
-        run_hcub = () -> first(HCubature.hcubature(fv_hc, LOW3_VEC, UP3_VEC;
+        run_hcub = () -> first(HCubature.hcubature(fv_hc, low_vec, up_vec;
             rtol=RTOL, atol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(3, prob.name, "HCubature", prob.exact, run_hcub))
 
         fv_hcub = v -> f(v[1], v[2], v[3])
-        run_hcub_jl = () -> first(Cubature.hcubature(fv_hcub, LOW3_VEC, UP3_VEC;
+        run_hcub_jl = () -> first(Cubature.hcubature(fv_hcub, low_vec, up_vec;
             reltol=RTOL, abstol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(3, prob.name, "CubatureJLh", prob.exact, run_hcub_jl))
 
         fv_pcub = v -> f(v[1], v[2], v[3])
-        run_pcub_jl = () -> first(Cubature.pcubature(fv_pcub, LOW3_VEC, UP3_VEC;
+        run_pcub_jl = () -> first(Cubature.pcubature(fv_pcub, low_vec, up_vec;
             reltol=RTOL, abstol=ATOL, maxevals=MAXEVALS))
         push!(rows, evaluate_method(3, prob.name, "CubatureJLp", prob.exact, run_pcub_jl))
 
         run_cuba_vegas = () -> begin
+            jac = (up[1] - low[1]) * (up[2] - low[2]) * (up[3] - low[3])
             function cuba_f(u, out)
-                x = 2u[1] - 1
-                y = 2u[2] - 1
-                z = 2u[3] - 1
-                out[1] = 8 * f(x, y, z)
+                x = low[1] + (up[1] - low[1]) * u[1]
+                y = low[2] + (up[2] - low[2]) * u[2]
+                z = low[3] + (up[3] - low[3]) * u[3]
+                out[1] = jac * f(x, y, z)
             end
             out = Cuba.vegas(cuba_f, 3, 1; rtol=RTOL, atol=ATOL,
                 maxevals=MAXEVALS, minevals=CUBA_MINEVALS, flags=0)
@@ -277,11 +349,12 @@ function benchmark_problem(prob::Problem)
         push!(rows, evaluate_method(3, prob.name, "CubaVegas", prob.exact, run_cuba_vegas))
 
         run_cuba_divonne = () -> begin
+            jac = (up[1] - low[1]) * (up[2] - low[2]) * (up[3] - low[3])
             function cuba_f(u, out)
-                x = 2u[1] - 1
-                y = 2u[2] - 1
-                z = 2u[3] - 1
-                out[1] = 8 * f(x, y, z)
+                x = low[1] + (up[1] - low[1]) * u[1]
+                y = low[2] + (up[2] - low[2]) * u[2]
+                z = low[3] + (up[3] - low[3]) * u[3]
+                out[1] = jac * f(x, y, z)
             end
             out = Cuba.divonne(cuba_f, 3, 1; rtol=RTOL, atol=ATOL,
                 maxevals=MAXEVALS, minevals=CUBA_MINEVALS, flags=0)
@@ -290,11 +363,12 @@ function benchmark_problem(prob::Problem)
         push!(rows, evaluate_method(3, prob.name, "CubaDivonne", prob.exact, run_cuba_divonne))
 
         run_cuba_cuhre = () -> begin
+            jac = (up[1] - low[1]) * (up[2] - low[2]) * (up[3] - low[3])
             function cuba_f(u, out)
-                x = 2u[1] - 1
-                y = 2u[2] - 1
-                z = 2u[3] - 1
-                out[1] = 8 * f(x, y, z)
+                x = low[1] + (up[1] - low[1]) * u[1]
+                y = low[2] + (up[2] - low[2]) * u[2]
+                z = low[3] + (up[3] - low[3]) * u[3]
+                out[1] = jac * f(x, y, z)
             end
             out = Cuba.cuhre(cuba_f, 3, 1; rtol=RTOL, atol=ATOL,
                 maxevals=MAXEVALS, minevals=0, flags=0)
@@ -332,11 +406,15 @@ end
 
 function write_full_markdown(path::AbstractString, rows)
     open(path, "w") do io
-        println(io, "# Benchmark Timings")
+        println(io, "# Benchmark Timings at Fixed Accuracy Target")
         println(io)
         println(io, "- Tolerances: `rtol=$(RTOL)`, `atol=$(ATOL)`")
         println(io, "- Max evaluations (external adaptive solvers): `$(MAXEVALS)`")
         println(io, "- Timing method: `@belapsed` with interpolation (`samples=$(BENCH_SAMPLES)`, `evals=$(BENCH_EVALS)`).")
+        println(io, "- One warm call is executed before each timed benchmark (reduces first-call compilation effects).")
+        println(io, "- Adaptive cache construction is excluded from timed regions (caches are prebuilt).")
+        println(io, "- `FTS avx` is run at the `N` inferred from adaptive FTS convergence.")
+        println(io, "- `FastGauss` (1D) is independently calibrated to the tolerance target.")
         println(io)
         println(io, "| Dim | Function | Method | Time (ns) | Abs Error | Rel Error | Status | Notes |")
         println(io, "| :-- | :------- | :----- | --------: | --------: | --------: | :----- | :---- |")
@@ -368,7 +446,7 @@ function write_summary_markdown(path::AbstractString, rows)
     end
 
     open(path, "w") do io
-        println(io, "## Benchmark Timing Table")
+        println(io, "## Benchmark Timing Table at Fixed Accuracy Target")
         println(io)
         println(io, "| Dim | Function | FTS adaptive | FTS quad | FTS avx | QuadGK | HCubature | Cubature h | Cubature p | Cuba Vegas | Cuba Divonne | Cuba Cuhre | FastGauss |")
         println(io, "| :-- | :------- | ----------: | -------: | ------: | -----: | --------: | ---------: | ---------: | ---------: | -----------: | ---------: | --------: |")
@@ -402,6 +480,8 @@ function write_summary_markdown(path::AbstractString, rows)
         end
         println(io)
         println(io, "`*` indicates result did not meet the requested tolerance.")
+        println(io, "`FTS avx` uses the `N` inferred from adaptive FTS convergence on each case.")
+        println(io, "`FastGauss` (1D) uses its own minimal `N` that meets tolerance (if found).")
     end
 end
 
