@@ -51,13 +51,15 @@ For a detailed derivation of the quadrature weights, error bounds, and the windo
 
 The package balances ease of use with maximum performance through a two-tier API:
 
-1.  **High-Level API** (`quad`): A drop-in replacement for standard quadrature functions, handling adaptivity, singularities, and infinite domains automatically.
+1.  **High-Level API** (`quad`): A drop-in replacement for standard quadrature functions, with adaptive stopping based on mixed tolerances (`rtol`, `atol`) and optional reusable caches.
 2.  **Low-Level API** (`integrateND_avx`): Allows users to pre-compute quadrature nodes and weights for reuse across millions of integrals, eliminating allocation overhead in tight loops.
 
 Key implementation features include:
 
 *   **Window Selection**: Uses the method of @Vanherck2020 to pre-determine integration bounds, enabling branch-free loops.
 *   **SIMD Optimization**: Leverages `LoopVectorization.jl` to vectorize evaluation loops, yielding 2-3x speedups over scalar codes.
+*   **Reusable Adaptive Caches**: Exposes `adaptive_cache_1D/2D/3D` to avoid repeated cache construction in repeated adaptive workloads.
+*   **Callable Integrands**: Supports generic callable objects (e.g., struct functors), not just `Function`.
 *   **Static Allocation**: For moderate node counts, weights and nodes can be stored in `StaticArrays`, eliminating heap allocations.
 *   **Arbitrary Precision**: Supports generic number types (`BigFloat`, `Double64`, `Float64x2`) by dynamically deriving quadrature parameters from machine epsilon.
 
@@ -65,15 +67,19 @@ Key implementation features include:
 
 `FastTanhSinhQuadrature.jl` has been integrated as a backend for `Integrals.jl` [@Integrals], ensuring widespread availability within the SciML ecosystem.
 
+To support long-term reproducibility, the software snapshot used for this manuscript is archived on Zenodo [@FastTanhSinhZenodo2026]. Command-level reproduction steps (tests, benchmarks, figure generation, and draft PDF workflow) are documented in the repository's `REPRODUCIBILITY.md` guide.
+
 ## Performance
 
 Figure 1 summarizes benchmarks against `FastGaussQuadrature.jl` [@FastGaussQuadrature], `QuadGK.jl` [@QuadGK], `HCubature.jl` [@HCubature], `Cubature.jl` [@Cubature], and `Cuba.jl` [@Cuba; @Hahn2015]. All benchmarks use `rtol = 10^{-6}` and `atol = 10^{-8}`; external adaptive solvers are capped at 200,000 evaluations. For each benchmark case, the plotted speedup is measured relative to the fastest competing method that also met the requested tolerance.
 
-The results show two distinct usage regimes. The high-level `quad` interface is most compelling for endpoint-singular integrands: in 1D it is about **6.7x** faster than `QuadGK.jl` on $(1-x^2)^{-1/2}$ and about **2.2x** faster on $\log(1-x)$, while in the tested 2D endpoint-singular case it is more than three orders of magnitude faster than the fastest accurate alternative. The SIMD path (`integrate*_avx`) is the main performance-oriented API: it is the fastest accurate method in 7 of the 9 directly comparable benchmarks, and it remains competitive or superior across many singular and smooth tensor-product problems.
+The results show two distinct usage regimes. The high-level `quad` interface is most compelling for endpoint-singular integrands: in the reproduced benchmark run it is about **18x** faster than `QuadGK.jl` on $(1-x^2)^{-1/2}$ and about **6x** faster on $\log(1-x)$, while in the tested 2D endpoint-singular case it is more than three orders of magnitude faster than the fastest accurate alternative. The SIMD path (`integrate*_avx`) is the main performance-oriented API: in the directly comparable benchmark set it is the fastest accurate method in a majority of cases, and it remains competitive or superior across many singular and smooth tensor-product problems.
+
+Because SIMD behavior can depend on Julia and `LoopVectorization` compatibility, Figure 1 reports two SIMD markers: one for the newer-Julia path and one for Julia 1.12 (where the fully active `LoopVectorization` path is available).
 
 These benchmarks also clarify the package's limitations. `FastTanhSinhQuadrature.jl` should be preferred when the integrand has endpoint singularities, when the same quadrature rule can be reused across many evaluations, or when arbitrary precision is required. It is less advantageous for smooth low-dimensional problems where specialized Gauss or Gauss-Kronrod rules already match the integrand well. For example, `FastGaussQuadrature.jl` and `QuadGK.jl` are faster on the smooth 1D polynomial and Runge-function tests, and `Cuba.jl`/`Cubature.jl` can outperform the adaptive `quad` interface on some smooth 3D problems. Interior singularities are likewise not handled automatically and still require domain splitting via `quad_split`.
 
-![Figure 1. Speedup of `quad` and `integrate*_avx` relative to the fastest accurate competing method on each benchmark problem. The 3D endpoint-singular case is omitted because `FastTanhSinhQuadrature.jl` was the only tested method that satisfied the requested tolerance.](benchmark_summary.svg){width=100%}
+![Figure 1. Speedup of `quad` and `integrate*_avx` relative to the fastest accurate competing method on each benchmark problem. Two SIMD markers are shown: newer-Julia and Julia 1.12 (`LoopVectorization`-active). The 3D endpoint-singular case is omitted because `FastTanhSinhQuadrature.jl` was the only tested method that satisfied the requested tolerance.](benchmark_summary.svg){width=100%}
 
 # Usage
 
@@ -83,10 +89,14 @@ These benchmarks also clarify the package's limitations. `FastTanhSinhQuadrature
 using FastTanhSinhQuadrature
 
 # Integrate exp(x) from 0 to 1
-val = quad(exp, 0.0, 1.0) # ≈ 1.71828...
+val = quad(exp, 0.0, 1.0; rtol=1e-8, atol=1e-10) # ≈ 1.71828...
 
 # Handle singularities: 1/sqrt(x)
 val = quad(x -> 1/sqrt(x), 0.0, 1.0) # ≈ 2.0
+
+# Reuse an adaptive cache across repeated calls
+cache = adaptive_cache_1D(Float64; max_levels=16)
+val = quad(exp, 0.0, 1.0; rtol=1e-8, atol=1e-10, cache=cache)
 ```
 
 ## High-Performance Pre-computation
