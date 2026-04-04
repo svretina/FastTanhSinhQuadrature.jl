@@ -1,99 +1,99 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Advanced Usage · FastTanhSinhQuadrature.jl</title><meta name="title" content="Advanced Usage · FastTanhSinhQuadrature.jl"/><meta property="og:title" content="Advanced Usage · FastTanhSinhQuadrature.jl"/><meta property="twitter:title" content="Advanced Usage · FastTanhSinhQuadrature.jl"/><meta name="description" content="Documentation for FastTanhSinhQuadrature.jl."/><meta property="og:description" content="Documentation for FastTanhSinhQuadrature.jl."/><meta property="twitter:description" content="Documentation for FastTanhSinhQuadrature.jl."/><meta property="og:url" content="https://svretina.github.io/FastTanhSinhQuadrature.jl/examples/advanced/"/><meta property="twitter:url" content="https://svretina.github.io/FastTanhSinhQuadrature.jl/examples/advanced/"/><link rel="canonical" href="https://svretina.github.io/FastTanhSinhQuadrature.jl/examples/advanced/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/custom.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="FastTanhSinhQuadrature.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FastTanhSinhQuadrature.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../theory/">Theory</a></li><li><a class="tocitem" href="../../convergence/">Convergence</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../basics/">Basic Usage</a></li><li class="is-active"><a class="tocitem" href>Advanced Usage</a><ul class="internal"><li><a class="tocitem" href="#1.-Multidimensional-Integration-(2D,-3D)"><span>1. Multidimensional Integration (2D, 3D)</span></a></li><li><a class="tocitem" href="#2.-Pre-computing-Nodes-for-Performance"><span>2. Pre-computing Nodes for Performance</span></a></li><li><a class="tocitem" href="#3.-SIMD-Acceleration-with-_avx-Variants"><span>3. SIMD Acceleration with <code>_avx</code> Variants</span></a></li><li><a class="tocitem" href="#4.-Handling-Internal-Singularities"><span>4. Handling Internal Singularities</span></a></li><li><a class="tocitem" href="#5.-Arbitrary-Precision-with-BigFloat"><span>5. Arbitrary Precision with BigFloat</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../benchmarks/">Benchmarks</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Advanced Usage</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Advanced Usage</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/svretina/FastTanhSinhQuadrature.jl/blob/master/docs/src/examples/advanced.md#" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Advanced-and-Multidimensional-Integration"><a class="docs-heading-anchor" href="#Advanced-and-Multidimensional-Integration">Advanced &amp; Multidimensional Integration</a><a id="Advanced-and-Multidimensional-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-and-Multidimensional-Integration" title="Permalink"></a></h1><h2 id="1.-Multidimensional-Integration-(2D,-3D)"><a class="docs-heading-anchor" href="#1.-Multidimensional-Integration-(2D,-3D)">1. Multidimensional Integration (2D, 3D)</a><a id="1.-Multidimensional-Integration-(2D,-3D)-1"></a><a class="docs-heading-anchor-permalink" href="#1.-Multidimensional-Integration-(2D,-3D)" title="Permalink"></a></h2><p><code>FastTanhSinhQuadrature.jl</code> supports multidimensional integration natively using <code>StaticArrays</code>.</p><h3 id="2D-Integration"><a class="docs-heading-anchor" href="#2D-Integration">2D Integration</a><a id="2D-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#2D-Integration" title="Permalink"></a></h3><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Advanced Usage · FastTanhSinhQuadrature.jl</title><meta name="title" content="Advanced Usage · FastTanhSinhQuadrature.jl"/><meta property="og:title" content="Advanced Usage · FastTanhSinhQuadrature.jl"/><meta property="twitter:title" content="Advanced Usage · FastTanhSinhQuadrature.jl"/><meta name="description" content="Documentation for FastTanhSinhQuadrature.jl."/><meta property="og:description" content="Documentation for FastTanhSinhQuadrature.jl."/><meta property="twitter:description" content="Documentation for FastTanhSinhQuadrature.jl."/><meta property="og:url" content="https://svretina.github.io/FastTanhSinhQuadrature.jl/examples/advanced/"/><meta property="twitter:url" content="https://svretina.github.io/FastTanhSinhQuadrature.jl/examples/advanced/"/><link rel="canonical" href="https://svretina.github.io/FastTanhSinhQuadrature.jl/examples/advanced/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/custom.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="FastTanhSinhQuadrature.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FastTanhSinhQuadrature.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Theory</span><ul><li><a class="tocitem" href="../../theory/">Overview</a></li><li><a class="tocitem" href="../../theory/error_models/">Error Models and Node Estimates</a></li></ul></li><li><a class="tocitem" href="../../convergence/">Convergence</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../basics/">Basic Usage</a></li><li class="is-active"><a class="tocitem" href>Advanced Usage</a><ul class="internal"><li><a class="tocitem" href="#1.-Multidimensional-Integration"><span>1. Multidimensional Integration</span></a></li><li><a class="tocitem" href="#2.-Reusing-Pre-Computed-Nodes"><span>2. Reusing Pre-Computed Nodes</span></a></li><li><a class="tocitem" href="#3.-Choosing-N-for-integrate1D-/-integrate1D_avx"><span>3. Choosing <code>N</code> for <code>integrate1D</code> / <code>integrate1D_avx</code></span></a></li><li><a class="tocitem" href="#4.-SIMD-Acceleration-with-_avx"><span>4. SIMD Acceleration with <code>_avx</code></span></a></li><li><a class="tocitem" href="#5.-Arbitrary-Precision"><span>5. Arbitrary Precision</span></a></li><li><a class="tocitem" href="#6.-Splitting-Multidimensional-Singularities"><span>6. Splitting Multidimensional Singularities</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../benchmarks/">Benchmarks</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Advanced Usage</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Advanced Usage</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/svretina/FastTanhSinhQuadrature.jl/blob/master/docs/src/examples/advanced.md#" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Advanced-Usage-and-Performance-Tuning"><a class="docs-heading-anchor" href="#Advanced-Usage-and-Performance-Tuning">Advanced Usage and Performance Tuning</a><a id="Advanced-Usage-and-Performance-Tuning-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-Usage-and-Performance-Tuning" title="Permalink"></a></h1><p>This page focuses on fixed-grid workflows, repeated integrations, SIMD, higher dimensions, and arbitrary precision.</p><h2 id="1.-Multidimensional-Integration"><a class="docs-heading-anchor" href="#1.-Multidimensional-Integration">1. Multidimensional Integration</a><a id="1.-Multidimensional-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#1.-Multidimensional-Integration" title="Permalink"></a></h2><p><code>FastTanhSinhQuadrature.jl</code> supports adaptive and fixed-grid 2D/3D integration.</p><h3 id="2D-Integration"><a class="docs-heading-anchor" href="#2D-Integration">2D Integration</a><a id="2D-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#2D-Integration" title="Permalink"></a></h3><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
 using StaticArrays
 
-# Define a 2D function f(x, y) = x^2 + y^2
 f_2d(x, y) = x^2 + y^2
 
-# Integration bounds: [-1, 1] × [-1, 1]
 low = SVector(-1.0, -1.0)
 up  = SVector(1.0, 1.0)
 
-# Pre-computed nodes
+# High-level adaptive interface
+val_quad = quad(f_2d, low, up)
+
+# Fixed-grid interface
 x, w, h = tanhsinh(Float64, 40)
-val = integrate2D(f_2d, low, up, x, w, h)
-println(&quot;Error: $(val - 8//3)&quot;)
-# Error: 4.440892098500626e-16
+val_fixed = integrate2D(f_2d, low, up, x, w, h)
 
-# Or using the high-level quad interface
-val = quad(f_2d, low, up)
-println(&quot;Error: $(val - 8//3)&quot;)
-# Error: -1.3322676295501878e-15</code></pre><h3 id="3D-Integration"><a class="docs-heading-anchor" href="#3D-Integration">3D Integration</a><a id="3D-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#3D-Integration" title="Permalink"></a></h3><pre><code class="language-julia hljs"># Integrate constant 1 over unit cube [0,1]³
-f_3d(x, y, z) = 1.0
-val = quad(f_3d, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-println(&quot;3D Volume: $val&quot;)  # ≈ 1.0
+println(&quot;quad error: $(val_quad - 8/3)&quot;)
+println(&quot;fixed-grid error: $(val_fixed - 8/3)&quot;)</code></pre><h3 id="3D-Integration"><a class="docs-heading-anchor" href="#3D-Integration">3D Integration</a><a id="3D-Integration-1"></a><a class="docs-heading-anchor-permalink" href="#3D-Integration" title="Permalink"></a></h3><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
+using StaticArrays
 
-# Pre-computed for performance
-x, w, h = tanhsinh(Float64, 30)
-low3 = SVector(0.0, 0.0, 0.0)
-up3  = SVector(1.0, 1.0, 1.0)
-val = integrate3D((x,y,z) -&gt; x*y*z, low3, up3, x, w, h)
-println(&quot;Error: $(val - 1//8)&quot;)
-# Error: 0.0</code></pre><h3 id="3D-Anisotropic-Box-with-Analytic-Check"><a class="docs-heading-anchor" href="#3D-Anisotropic-Box-with-Analytic-Check">3D Anisotropic Box with Analytic Check</a><a id="3D-Anisotropic-Box-with-Analytic-Check-1"></a><a class="docs-heading-anchor-permalink" href="#3D-Anisotropic-Box-with-Analytic-Check" title="Permalink"></a></h3><pre><code class="language-julia hljs">using StaticArrays
+f_3d(x, y, z) = x * y * z
 
-x, w, h = tanhsinh(Float64, 80)
-low = SVector(-2.0, -1.0, 0.0)
-up  = SVector(3.0, 2.0, 4.0)
+low = SVector(0.0, 0.0, 0.0)
+up  = SVector(1.0, 1.0, 1.0)
 
-f(x, y, z) = x^2 + 2y + 3z^2
-val = integrate3D(f, low, up, x, w, h)
+val = quad(f_3d, low, up)
+println(&quot;Error: $(val - 1/8)&quot;)</code></pre><h2 id="2.-Reusing-Pre-Computed-Nodes"><a class="docs-heading-anchor" href="#2.-Reusing-Pre-Computed-Nodes">2. Reusing Pre-Computed Nodes</a><a id="2.-Reusing-Pre-Computed-Nodes-1"></a><a class="docs-heading-anchor-permalink" href="#2.-Reusing-Pre-Computed-Nodes" title="Permalink"></a></h2><p>If you integrate many related functions, pre-compute nodes once and reuse them:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
 
-# Exact integral:
-exact = 1160//1
-
-println(&quot;Error: $(val - exact)&quot;)
-# Error: -1.8189894035458565e-12</code></pre><h2 id="2.-Pre-computing-Nodes-for-Performance"><a class="docs-heading-anchor" href="#2.-Pre-computing-Nodes-for-Performance">2. Pre-computing Nodes for Performance</a><a id="2.-Pre-computing-Nodes-for-Performance-1"></a><a class="docs-heading-anchor-permalink" href="#2.-Pre-computing-Nodes-for-Performance" title="Permalink"></a></h2><p>For performance-critical code where you integrate many functions or run loops, always pre-calculate the quadrature nodes <code>(x, w, h)</code>.</p><pre><code class="language-julia hljs"># Pre-calculate once (more expensive operation)
 x, w, h = tanhsinh(Float64, 100)
 
-# Reuse many times (cheap operation)
 for i in 1:100
-    param = i / 100.0
-    f(t) = exp(-param * t^2)
+    α = i / 100
+    f(t) = exp(-α * t^2)
     val = integrate1D(f, 0.0, 10.0, x, w, h)
     # ... use val
-end</code></pre><h2 id="3.-SIMD-Acceleration-with-_avx-Variants"><a class="docs-heading-anchor" href="#3.-SIMD-Acceleration-with-_avx-Variants">3. SIMD Acceleration with <code>_avx</code> Variants</a><a id="3.-SIMD-Acceleration-with-_avx-Variants-1"></a><a class="docs-heading-anchor-permalink" href="#3.-SIMD-Acceleration-with-_avx-Variants" title="Permalink"></a></h2><p>For functions compatible with <code>LoopVectorization.jl</code>, you can achieve significant speedups:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
+end</code></pre><p>This is often the best pattern when the integration domain and precision are fixed but the integrand changes repeatedly.</p><h3 id="Reusing-Adaptive-Caches"><a class="docs-heading-anchor" href="#Reusing-Adaptive-Caches">Reusing Adaptive Caches</a><a id="Reusing-Adaptive-Caches-1"></a><a class="docs-heading-anchor-permalink" href="#Reusing-Adaptive-Caches" title="Permalink"></a></h3><p>If you prefer adaptive refinement (<code>quad</code>) but still want low overhead across many calls, prebuild and reuse the adaptive cache:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
+
+cache = adaptive_cache_2D(Float64; max_levels=8)
+low = [-1.0, -1.0]
+up  = [1.0, 1.0]
+
+for α in (0.5, 1.0, 2.0)
+    f(x, y) = exp(-α * (x^2 + y^2))
+    val = quad(f, low, up; rtol=1e-8, atol=1e-10, cache=cache)
+    println((α, val))
+end</code></pre><p>For 1D and 3D, use <code>adaptive_cache_1D</code> and <code>adaptive_cache_3D</code> respectively.</p><h2 id="3.-Choosing-N-for-integrate1D-/-integrate1D_avx"><a class="docs-heading-anchor" href="#3.-Choosing-N-for-integrate1D-/-integrate1D_avx">3. Choosing <code>N</code> for <code>integrate1D</code> / <code>integrate1D_avx</code></a><a id="3.-Choosing-N-for-integrate1D-/-integrate1D_avx-1"></a><a class="docs-heading-anchor-permalink" href="#3.-Choosing-N-for-integrate1D-/-integrate1D_avx" title="Permalink"></a></h2><p>The fixed-grid interfaces do not take a tolerance and do not estimate their own error. A practical approach is to double <code>N</code> until two successive fixed-grid results satisfy the same stopping rule used by <code>quad</code>:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
+
+function choose_nodes_1d_avx(f, low, up;
+    T=Float64,
+    candidates=(16, 32, 64, 128, 256, 512),
+    rtol=sqrt(eps(T)),
+    atol=zero(T),
+)
+    prev_val = nothing
+
+    for N in candidates
+        x, w, h = tanhsinh(T, N)
+        val = integrate1D_avx(f, T(low), T(up), x, w, h)
+
+        if prev_val !== nothing
+            err_est = abs(val - prev_val)
+            target = max(T(atol), T(rtol) * abs(val))
+            if err_est &lt;= target
+                return (N=N, value=val, x=x, w=w, h=h)
+            end
+        end
+
+        prev_val = val
+    end
+
+    error(&quot;No candidate N met the requested tolerance.&quot;)
+end
+
+cfg = choose_nodes_1d_avx(exp, 0.0, 1.0; rtol=1e-8, atol=1e-12)
+println(cfg.N)</code></pre><p>If you already trust <code>quad</code> on a representative integrand family, another practical workflow is to use <code>quad(...; rtol, atol)</code> as a reference and choose the smallest <code>N</code> for which <code>integrate1D</code> or <code>integrate1D_avx</code> matches that reference to the desired accuracy.</p><h2 id="4.-SIMD-Acceleration-with-_avx"><a class="docs-heading-anchor" href="#4.-SIMD-Acceleration-with-_avx">4. SIMD Acceleration with <code>_avx</code></a><a id="4.-SIMD-Acceleration-with-_avx-1"></a><a class="docs-heading-anchor-permalink" href="#4.-SIMD-Acceleration-with-_avx" title="Permalink"></a></h2><p>For <code>Float32</code> and <code>Float64</code>, the <code>_avx</code> variants use <code>LoopVectorization.jl</code> and can be substantially faster for repeated fixed-grid integrations:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
 using BenchmarkTools
 
 f_poly(x) = x^12 + 3x^5 - 2x
+x, w, h = tanhsinh(Float64, 256)
 
-x, w, h = tanhsinh(Float64, 500)
+t_scalar = @belapsed integrate1D($f_poly, $x, $w, $h)
+t_simd   = @belapsed integrate1D_avx($f_poly, $x, $w, $h)
 
-julia&gt; @benchmark integrate1D_avx($f_poly, $x, $w, $h)
-BenchmarkTools.Trial: 10000 samples with 980 evaluations per sample.
- Range (min … max):  65.323 ns … 224.431 ns  ┊ GC (min … max): 0.00% … 0.00%
- Time  (median):     73.924 ns               ┊ GC (median):    0.00%
- Time  (mean ± σ):   76.228 ns ±   7.036 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+println(&quot;Speedup: $(t_scalar / t_simd)&quot;)</code></pre><p>Use the <code>_avx</code> path after you have already selected a suitable <code>N</code>.</p><h2 id="5.-Arbitrary-Precision"><a class="docs-heading-anchor" href="#5.-Arbitrary-Precision">5. Arbitrary Precision</a><a id="5.-Arbitrary-Precision-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Arbitrary-Precision" title="Permalink"></a></h2><p>Tanh-Sinh quadrature is often attractive when you need more than <code>Float64</code> precision:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
+using DoubleFloats
 
-           █ ▄▇                                                 
-  ▂▂▂▂▂▂▂▂██▅██▅▇▆▄▅▄▃▄▅▃▃▅▄▃▄▄▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂ ▃
-  65.3 ns         Histogram: frequency by time          106 ns &lt;
+val = quad(exp, Double64(0), Double64(1); rtol=1e-30)
+println(val)</code></pre><p>Or with <code>BigFloat</code>:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
 
- Memory estimate: 0 bytes, allocs estimate: 0.
+setprecision(BigFloat, 256)
 
-julia&gt; @benchmark integrate1D($f_poly, $x, $w, $h)
-BenchmarkTools.Trial: 10000 samples with 8 evaluations per sample.
- Range (min … max):  3.586 μs …  16.761 μs  ┊ GC (min … max): 0.00% … 0.00%
- Time  (median):     4.526 μs               ┊ GC (median):    0.00%
- Time  (mean ± σ):   4.680 μs ± 617.014 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+x, w, h = tanhsinh(BigFloat, 150)
+val = integrate1D(log1p, BigFloat(-1), BigFloat(1), x, w, h)
+println(val)</code></pre><h2 id="6.-Splitting-Multidimensional-Singularities"><a class="docs-heading-anchor" href="#6.-Splitting-Multidimensional-Singularities">6. Splitting Multidimensional Singularities</a><a id="6.-Splitting-Multidimensional-Singularities-1"></a><a class="docs-heading-anchor-permalink" href="#6.-Splitting-Multidimensional-Singularities" title="Permalink"></a></h2><p>For internal singularities in 2D or 3D, use <code>quad_split</code> to turn them into boundary singularities on subdomains:</p><pre><code class="language-julia hljs">using FastTanhSinhQuadrature
+using StaticArrays
 
-            ▁▁█▄                                               
-  ▂▂▂▂▁▂▁▂▃▄████▆▅▄▄▃▄▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▃
-  3.59 μs         Histogram: frequency by time        7.84 μs &lt;
-
- Memory estimate: 0 bytes, allocs estimate: 0.
-t1 = @belapsed integrate1D_avx($f_poly, $x, $w, $h)
-t2 = @belapsed integrate1D($f_poly, $x, $w, $h)
-println(&quot;Speedup: $(t2/t1)&quot;)
-# Speedup: 60.6060266328906</code></pre><h3 id="2D/3D-SIMD"><a class="docs-heading-anchor" href="#2D/3D-SIMD">2D/3D SIMD</a><a id="2D/3D-SIMD-1"></a><a class="docs-heading-anchor-permalink" href="#2D/3D-SIMD" title="Permalink"></a></h3><pre><code class="language-julia hljs">using StaticArrays
-
-low = SVector(-1.0, -1.0)
-up  = SVector(1.0, 1.0)
-
-# SIMD-accelerated 2D integration
-val = integrate2D_avx((x,y) -&gt; x^2 + y^2, low, up, x, w, h)
-aval = 8//3
-println(&quot;Error: $(val - aval)&quot;)
-# Error: -3.162230512660876733012324488637462686944251599484320216324290926764451115142467e-57</code></pre><h2 id="4.-Handling-Internal-Singularities"><a class="docs-heading-anchor" href="#4.-Handling-Internal-Singularities">4. Handling Internal Singularities</a><a id="4.-Handling-Internal-Singularities-1"></a><a class="docs-heading-anchor-permalink" href="#4.-Handling-Internal-Singularities" title="Permalink"></a></h2><p>For functions with singularities inside the domain, use <code>quad_split</code>:</p><pre><code class="language-julia hljs"># 2D example: singularity at (0, 0)
 f_sing(x, y) = 1 / sqrt(x^2 + y^2)
 
 center = SVector(0.0, 0.0)
@@ -101,23 +101,4 @@ low = SVector(-1.0, -1.0)
 up  = SVector(1.0, 1.0)
 
 val = quad_split(f_sing, center, low, up)
-aval = 8*asinh(one(val))
-println(&quot;Error: $(val - aval)&quot;)
-# Error: -9.14823772291129e-14</code></pre><p>For 3D:</p><pre><code class="language-julia hljs">using StaticArrays
-
-f_abs3(x, y, z) = 1 / sqrt(abs(x * y * z))
-center3 = SVector(0.0, 0.0, 0.0)
-low3    = SVector(-1.0, -1.0, -1.0)
-up3     = SVector(1.0, 1.0, 1.0)
-
-val3 = quad_split(f_abs3, center3, low3, up3)
-println(&quot;3D split integral: $val3&quot;)  # ≈ 64</code></pre><h2 id="5.-Arbitrary-Precision-with-BigFloat"><a class="docs-heading-anchor" href="#5.-Arbitrary-Precision-with-BigFloat">5. Arbitrary Precision with BigFloat</a><a id="5.-Arbitrary-Precision-with-BigFloat-1"></a><a class="docs-heading-anchor-permalink" href="#5.-Arbitrary-Precision-with-BigFloat" title="Permalink"></a></h2><pre><code class="language-julia hljs">setprecision(BigFloat, 256)  # 256-bit precision
-
-x, w, h = tanhsinh(BigFloat, 150)
-f(x) = log(1 + x)
-
-val = integrate1D(f, x, w, h)
-println(&quot;High precision: $val&quot;)
-println(&quot;Exact value: $-2 + log(4)&quot;)
-println(&quot;Error: $(val - (-2+ log(BigFloat(4))))&quot;)
-# 1.351669432265398138420644011346412477230033406653628853271033861612521133030749e-62</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../basics/">« Basic Usage</a><a class="docs-footer-nextpage" href="../../benchmarks/">Benchmarks »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 3 April 2026 12:15">Friday 3 April 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+println(val)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../basics/">« Basic Usage</a><a class="docs-footer-nextpage" href="../../benchmarks/">Benchmarks »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 4 April 2026 14:56">Saturday 4 April 2026</span>. Using Julia version 1.12.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
