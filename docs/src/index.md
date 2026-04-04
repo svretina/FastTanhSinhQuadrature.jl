@@ -50,6 +50,7 @@ val_static = integrate1D_avx(sin, x_static, w_static, h_static)
 ## Choosing an API
 
 - Use `quad` when you want adaptive refinement without manually choosing `N`.
+- For repeated adaptive calls, build `adaptive_cache_1D/2D/3D` once and pass `cache=...`.
 - Use `integrate1D`/`integrate2D`/`integrate3D` with pre-computed `(x, w, h)` when reusing the same nodes across many integrals.
 - Use `_avx` variants for `Float32`/`Float64` if your integrand works with `LoopVectorization`.
 - Use `quad_split` for interior singularities and `quad_cmpl` for endpoint-sensitive formulations.
@@ -74,3 +75,21 @@ Pre-computed and high-level interfaces accept mixed real bounds (`Int`, `Float64
 - [Advanced Examples](examples/advanced.md): Multidimensional integration and performance tips.
 - [Benchmarks](benchmarks.md): Performance comparison against other libraries.
 - [API Reference](api.md): Detailed function documentation.
+
+## Other Julia quadrature packages
+
+No single quadrature method dominates every integrand class.
+
+Benchmark-based guidance from this repository (`rtol=1e-6`, `atol=1e-8`):
+
+- `FastTanhSinhQuadrature.jl` is strongest for endpoint-dominated cases (for example `1/sqrt(1-x^2)` and `log(1-x)`), where `quad` is much faster than `QuadGK` in our benchmark set.
+- For strongly oscillatory 1D integrals (for example `sin^2(1000x)`), `QuadGK.jl` is the better default in our tests.
+- For smooth low-order 1D functions, calibrated fixed Gaussian rules from `FastGaussQuadrature.jl` can be the fastest option.
+- In 2D/3D box integrals, this package is often very competitive and robust on endpoint-singular products in our suite.
+- If values are only available on a predetermined grid (not callable at arbitrary points), use sampled-data integration packages such as `Trapz.jl`, `Romberg.jl`, or `NumericalIntegration.jl`.
+
+Practical rule of thumb:
+
+- Choose this package for endpoint singularities, endpoint-sensitive formulas, and repeated integrations with precomputed nodes/caches.
+- Prefer `QuadGK.jl` first for many oscillatory 1D workloads.
+- Compare against `HCubature.jl`, `Cubature.jl`, and `Cuba.jl` for general multidimensional cubature problems.

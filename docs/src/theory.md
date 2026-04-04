@@ -38,22 +38,28 @@ The integral then becomes:
 Since the method is specific for the $x \in (-1,1)$ domain, one must cast the desired integral to this domain by the linear substitution:
 
 ```math
-x(u)=\frac{b+a}{2}+\frac{b-a}{2}u
+x(t)=m+r\Psi(t), \quad m=\frac{a+b}{2}, \quad r=\frac{b-a}{2}
 ```
 
-This transformation changes an arbitrary interval $[a,b]$ to $[-1,1]$, hence
+Then
 
 ```math
-\int_a^b f(x)dx= \frac{b-a}{2}\int_{-1}^1 f(x(u))du = \frac{b-a}{2}\int_{-\infty}^\infty f(x(u(t))) w(t) dt
+\frac{dx}{dt} = r\,w(t), \quad w(t)=\Psi'(t)
+```
+
+and the integral over an arbitrary interval becomes
+
+```math
+\int_a^b f(x)\,dx = r\int_{-\infty}^{\infty} f(x(t))\,w(t)\,dt.
 ```
 
 ## Transformation Visualization
 
-The key to the Tanh-Sinh quadrature's effectiveness lies in how the transformation maps the integration points. While the discretization in the transformed $t$-domain uses equidistant notes ($t_i = ih$), the mapping $x = \tanh(\frac{\pi}{2} \sinh t)$ causes these corresponding $x_i$ nodes to cluster **double exponentially** fast near the endpoints $-1$ and $+1$ of the original domain. This dense clustering allows the quadrature to accurately resolve functions even when they have singularities at the boundaries, as the weights decay rapidly enough to suppress the singularity.
+The key to the Tanh-Sinh quadrature's effectiveness lies in how the transformation maps the integration points. While the discretization in the transformed $t$-domain uses equidistant nodes ($t_i = ih$), the mapping $x = \tanh(\frac{\pi}{2} \sinh t)$ causes these corresponding $x_i$ nodes to cluster **double exponentially** fast near the endpoints $-1$ and $+1$ of the original domain. This dense clustering allows the quadrature to accurately resolve functions even when they have singularities at the boundaries, as the weights decay rapidly enough to suppress the singularity.
 
 ```@raw html
 <div style="text-align: center;">
-  <img src="figure_1.png" alt="Transformation Visualization" width="400">
+  <img src="../figure_1.png" alt="Transformation Visualization" width="400">
   <br>
   <em>Figure 1: Visualization of the Tanh-Sinh variable transformation. Source: <a href="https://arxiv.org/abs/2007.15057">arXiv:2007.15057</a>.</em>
 </div>
@@ -88,7 +94,13 @@ This rapid convergence rate is the hallmark of double exponential formulas. See 
 The choice of the step size $h$ and the number of points $N$ are coupled. To balance the discretization error (from the trapezoidal rule) and the truncation error (from cutting off the infinite sum), the optimal step size $h$ for a given $N$ is approximately:
 
 ```math
-h_{opt} \approx \frac{2}{N} \ln(\pi d N)
+h_{opt}(N) = \frac{2}{N} W(2dN),
+```
+
+where $W$ is the Lambert-$W$ function. A common large-$N$ approximation is
+
+```math
+h_{opt}(N)\approx \frac{2}{N}\ln(2dN).
 ```
 
 However, in floating-point arithmetic, we are limited by the machine precision. We cannot transform points arbitrarily close to $\pm 1$ without hitting the underflow limit or precision bound of the floating-point type.
@@ -100,6 +112,12 @@ h_{max} = \frac{t_{max}}{n}
 ```
 
 Typically, $t_{max}$ is determined by the condition where the weights $\Psi'(t)$ underflow to zero or the nodes $\Psi(t)$ become indistinguishable from $\pm 1$ in the given precision.
+
+## Optimal vs Maximal Spacing
+
+For a detailed derivation of the two-error model, the Lambert-$W$ optimal-spacing formula, a derived maximal-spacing asymptotic, and practical point-count estimates, see:
+
+[`Theory → Error Models and Node Estimates`](theory/error_models.md)
 
 ## Numerical Stability Notes
 
@@ -137,6 +155,58 @@ To achieve a desired accuracy without manually tuning the number of points $N$, 
 2. **Node Reuse**: Because $h_{k+1} = h_k / 2$, all nodes from iteration $k$ are preserved in iteration $k+1$ (they correspond to the even-indexed nodes $x_{2i}^{k+1}$).
 3. **Efficiency**: At each step, we only evaluate the function at the **new** nodes (odd indices $x_{2i+1}^{k+1}$ in the refined grid). This reduces the number of expensive function calls by a factor of 2 compared to recomputing the whole sum.
 4. **Multi-Dimensional Symmetry**: we exploit the symmetry of the Tanh-Sinh weights ($w(t) = w(-t)$) and nodes ($\Psi(t) = -\Psi(-t)$). For 2D and 3D integrals, this means we only iterate over one "corner" of the domain and use reflections (4-way in 2D, 8-way in 3D) to accumulate the final sum.
+5. **Stopping Criterion**: If `I_old` and `I_new` are two successive refinement estimates, the adaptive routines use
+
+```math
+\mathrm{err}_{est} = |I_{new} - I_{old}|
+```
+
+and stop when
+
+```math
+\mathrm{err}_{est} \le \max(\mathrm{atol}, \mathrm{rtol}\,|I_{new}|).
+```
+
+If `atol = 0` and `rtol` is not supplied, the default is `rtol = \sqrt{\varepsilon_T}` for the floating-point type `T`.
+
+### Choosing `N` for Fixed-Grid Integrators
+
+The fixed-grid interfaces (`integrate1D`, `integrate1D_avx`, `integrate2D`, `integrate2D_avx`, `integrate3D`, `integrate3D_avx`) do not estimate their own error. The asymptotic estimate above gives useful qualitative guidance, but in practice the strip width `d` is usually not known in advance.
+
+Let $\varepsilon$ be the requested error level and $L=\ln(1/\varepsilon)$.
+
+Useful first-pass point-count estimates are:
+
+```math
+N_{opt}
+\approx
+\frac{L}{\pi d}\ln\!\left(\frac{2L}{\pi}\right)
+```
+
+for optimal spacing (heuristic inversion of the Vanherck asymptotic), and
+
+```math
+N_{max}
+\approx
+\frac{t_{max}}{\pi d}L
+```
+
+for maximal spacing, provided $\varepsilon$ is above the truncation floor
+
+```math
+\varepsilon_{floor}\approx \exp\!\left(-\frac{\pi}{2}e^{t_{max}}\right).
+```
+
+If $\varepsilon \le \varepsilon_{floor}$, increasing $N$ alone is insufficient:
+you need larger $t_{max}$ and/or higher precision.
+
+For practical work, the safest strategy is still to increase `N` and monitor convergence directly. A standard stopping check is to compare successive fixed-grid results using the same criterion as `quad`:
+
+```math
+|I_{2N} - I_N| \le \max(\mathrm{atol}, \mathrm{rtol}\,|I_{2N}|).
+```
+
+For repeated integrations, calibrate `N` once on representative integrands and then reuse the same pre-computed nodes.
 
 ### Implementation Notes (This Package)
 

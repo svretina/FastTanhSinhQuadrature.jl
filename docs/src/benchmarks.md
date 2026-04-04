@@ -1,6 +1,10 @@
 # Benchmarks
 
-Cross-library timing comparison for:
+This benchmark suite is **accuracy-targeted**, not a fixed-node-count race.
+Every method is timed against a common accuracy target, and methods that do not
+meet that target are marked explicitly.
+
+Cross-library comparisons include:
 - `FastTanhSinhQuadrature.jl`
 - `QuadGK.jl`
 - `HCubature.jl`
@@ -8,39 +12,74 @@ Cross-library timing comparison for:
 - `Cuba.jl` (`Vegas`, `Divonne`, `Cuhre`, for >1D)
 - `FastGaussQuadrature.jl` (1D only)
 
+## How to Read This Page
+
+- Adaptive libraries are run with the same `rtol` / `atol` targets.
+- For each test case, we infer an `N` from the level where `FTS adaptive`
+  satisfies the stopping criterion.
+- `FTS avx` is benchmarked at that adaptive-matched `N`.
+- `FastGauss` (1D) is calibrated independently to the same tolerance target.
+- The table therefore reports adaptive tolerance-based runs plus fixed-grid
+  comparisons where each method uses its own convergence path.
+- Methods marked with `*` did not meet the requested target within the candidate
+  node list or evaluation budget.
+
+If you are deciding whether to use this package, the most important distinction
+is usually the problem class:
+
+- For endpoint singularities or repeated integrations with pre-computed nodes,
+  Tanh-Sinh can be extremely effective.
+- For ordinary smooth 1D problems, especially oscillatory ones, `QuadGK.jl`
+  is often the better default.
+
 ## Methodology
 
-- Domain: `[-1,1]^d`
+- Domain: case-dependent (most tests use `[-1,1]^d`; oscillatory 1D test uses `[-π,π]`)
 - Tolerances: `rtol = 1e-6`, `atol = 1e-8`
 - Max evaluations (external adaptive solvers): `200000`
 - Timing: `@belapsed` with interpolation (`samples=3`, `evals=1`)
+- One warm call is executed before each timed benchmark.
+- Adaptive cache construction is excluded from timed regions (prebuilt caches).
 
 For this package we benchmark:
 - `adaptive_integrate_*` typed calls (minimal-dispatch adaptive path),
 - `quad` convenience calls,
-- precomputed-node `_avx` calls (with the smallest `n` that meets tolerance, if found).
+- precomputed-node `_avx` calls at the `N` inferred from adaptive convergence.
+
+The raw benchmark outputs also include absolute and relative errors:
 
 Raw output files are generated at:
 - `benchmark/results/timings.csv`
 - `benchmark/results/timings_full.md`
 - `benchmark/results/timings_summary.md`
 
-## Timing Table
+## Timing Table at Fixed Accuracy Target
 
 | Dim | Function | FTS adaptive | FTS quad | FTS avx | QuadGK | HCubature | Cubature h | Cubature p | Cuba Vegas | Cuba Divonne | Cuba Cuhre | FastGauss |
 | :-- | :------- | ----------: | -------: | ------: | -----: | --------: | ---------: | ---------: | ---------: | -----------: | ---------: | --------: |
-| 1D | 1/(1+25x^2) | 4058.0000 | 4126.0000 | 217.0000 | 375.0000 | 1.180e+04 | 1.385e+04 | 1.246e+04 | n/a | n/a | n/a | 97.0000 |
-| 1D | 1/sqrt(1-x^2) | 1102.0000 | 988.0000 | 339.0000 | 6646.0000 | 1.836e+05 | 1.634e+05 | 766.0000 * | n/a | n/a | n/a | 9401.0000 * |
-| 1D | log(1-x) | 1496.0000 | 1513.0000 | 247.0000 | 3399.0000 | 4.422e+04 | 5.497e+04 | 732.0000 * | n/a | n/a | n/a | 9460.0000 |
-| 1D | x^6 - 2x^3 + 0.5 | 2330.0000 | 2221.0000 | 307.0000 | 322.0000 | 7359.0000 | 1591.0000 | 3107.0000 | n/a | n/a | n/a | 77.0000 |
-| 2D | 1/sqrt((1-x^2)(1-y^2)) | 3240.0000 | 3383.0000 | 578.0000 | n/a | 4.455e+07 | 2.752e+07 | 1468.0000 * | 2.470e+07 * | 3.780e+07 * | 2.308e+07 * | n/a |
-| 2D | exp(x+y) | 1.602e+04 | 1.712e+04 | 933.0000 | n/a | 7.078e+04 | 3.199e+04 | 3.125e+04 | 2.408e+07 * | 2.283e+07 | 2.523e+04 | n/a |
-| 2D | x^2 + y^2 | 3400.0000 | 3621.0000 | 294.0000 | n/a | 5857.0000 | 1882.0000 | 7069.0000 | 2.351e+07 * | 2.297e+07 | 2.711e+04 | n/a |
-| 3D | 1/sqrt((1-x^2)(1-y^2)(1-z^2)) | 7.509e+04 | 7.803e+04 | 748.0000 | n/a | 2.778e+07 * | 2.071e+07 * | 3250.0000 * | 2.452e+07 * | 3.176e+07 * | 2.270e+07 * | n/a |
-| 3D | exp(x+y+z) | 8.888e+05 | 8.946e+05 | 1.106e+04 | n/a | 3.228e+05 | 2.271e+05 | 6.014e+05 | 2.682e+07 * | 2.953e+07 * | 4.272e+04 | n/a |
-| 3D | x^2*y^2*z^2 | 5.562e+04 | 5.563e+04 | 688.0000 | n/a | 9.873e+06 | 7.470e+06 | 1.751e+04 | 2.682e+07 * | 3.513e+07 * | 9.269e+06 | n/a |
+| 1D | 1/(1+25x^2) | 735.0000 | 628.0000 | 474.0000 | 1612.0000 | 1.620e+04 | 1.644e+04 | 2.007e+04 | n/a | n/a | n/a | 176.0000 |
+| 1D | 1/sqrt(1-x^2) | 574.0000 | 528.0000 | 523.0000 | 1.154e+04 | 2.189e+05 | 2.389e+05 | 2834.0000 * | n/a | n/a | n/a | 1.146e+04 * |
+| 1D | log(1-x) | 1013.0000 | 592.0000 | 442.0000 | 5237.0000 | 6.031e+04 | 7.402e+04 | 1356.0000 * | n/a | n/a | n/a | 1.208e+04 |
+| 1D | sin^2(1000x) | 1.770e+05 | 2.542e+05 | 2.909e+04 | 1.142e+04 | 1.313e+05 | 1.041e+05 | 1301.0000 * | n/a | n/a | n/a | 3.748e+04 |
+| 1D | x^6 - 2x^3 + 0.5 | 1306.0000 | 803.0000 | 335.0000 | 1898.0000 | 4813.0000 | 2249.0000 | 8949.0000 | n/a | n/a | n/a | 118.0000 |
+| 2D | 1/sqrt((1-x^2)(1-y^2)) | 3663.0000 | 3660.0000 | 1865.0000 | n/a | 5.218e+07 | 2.832e+07 | 2433.0000 * | 9.357e+07 * | 1.140e+08 * | 9.744e+07 * | n/a |
+| 2D | exp(x+y) | 1.864e+04 | 2.438e+04 | 5720.0000 | n/a | 8.769e+04 | 4.420e+04 | 3.861e+04 | 9.402e+07 * | 8.362e+07 | 6.697e+04 | n/a |
+| 2D | x^2 + y^2 | 2678.0000 | 2153.0000 | 1968.0000 | n/a | 9986.0000 | 5980.0000 | 9098.0000 | 8.497e+07 * | 7.713e+07 | 6.858e+04 | n/a |
+| 3D | 1/sqrt((1-x^2)(1-y^2)(1-z^2)) | 1.168e+05 | 1.153e+05 | 7.367e+04 | n/a | 3.339e+07 * | 3.151e+07 * | 5400.0000 * | 1.320e+08 * | 1.391e+08 * | 1.111e+08 * | n/a |
+| 3D | exp(x+y+z) | 1.049e+06 | 1.069e+06 | 3.401e+05 | n/a | 3.619e+05 | 3.170e+05 | 7.207e+05 | 1.178e+08 * | 1.283e+08 * | 1.795e+05 | n/a |
+| 3D | x^2*y^2*z^2 | 7.994e+04 | 7.634e+04 | 2.207e+04 | n/a | 1.345e+07 | 8.682e+06 | 2.441e+04 | 1.055e+08 * | 1.318e+08 * | 4.454e+07 | n/a |
 
 `*` indicates the method did not meet the requested tolerance on that case.
+`FTS avx` uses the `N` inferred from adaptive FTS convergence.
+`FastGauss` (1D) uses its own minimal `N` that meets tolerance (if found).
+
+## Benchmark Summary Figure
+
+This summary shows speedup of `FTS quad` and `FTS avx`
+relative to the fastest accurate competing method on each benchmark case.
+Values greater than 1 indicate faster performance.
+
+![Benchmark speedup summary](assets/benchmark_summary.svg)
 
 ## Running Benchmarks
 

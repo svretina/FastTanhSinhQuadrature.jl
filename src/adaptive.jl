@@ -16,24 +16,33 @@
 
 # Adaptive integration functions
 
+@inline function _require_cache_levels(cache, max_levels::Int)
+    length(cache.xs) >= max_levels ||
+        throw(ArgumentError("provided adaptive cache supports $(length(cache.xs)) levels, but `max_levels=$(max_levels)` was requested."))
+    return cache
+end
+
 """
-    adaptive_integrate_1D(::Type{T}, f, a, b; rtol, atol, max_levels::Int=16, warn::Bool=true)
+    adaptive_integrate_1D(::Type{T}, f, a, b; rtol, atol, max_levels::Int=16, warn::Bool=true, cache=nothing)
 
 Adaptive 1D Tanh-Sinh integration over `[a, b]`. Starts with a coarse grid (h ≈ tmax/2) and halves 
 the step size at each level. Reuses function evaluations from previous levels by only computing
 new (odd-indexed) nodes. Exploits symmetry around the center of the interval.
+The error estimate is `abs(I_new - I_old)` between successive refinement levels,
+and refinement stops when it is below `max(atol, rtol * abs(I_new))`.
 """
 function adaptive_integrate_1D(::Type{T}, f::F, a, b;
     rtol=nothing, atol::Real=0, max_levels::Int=16,
-    warn::Bool=true) where {T<:Real,F}
+    warn::Bool=true, cache=nothing) where {T<:Real,F}
     a_T, b_T = T(a), T(b)
     rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
     Δx, x₀ = _midpoint_radius(a_T, b_T)
-    cache = _adaptive_1d_cache(T, max_levels)
+    cache1d = cache === nothing ? adaptive_cache_1D(T; max_levels=max_levels) :
+              _require_cache_levels(cache, max_levels)
     half = _half(T)
 
     # Initial Grid (Level 0)
-    h = cache.tm * half
+    h = cache1d.tm * half
 
     # Weight at t=0 is π/2
     w0 = T(π) * half
@@ -41,9 +50,9 @@ function adaptive_integrate_1D(::Type{T}, f::F, a, b;
 
     # Initial Level evaluations
     @inbounds for i in 1:2
-        xk = cache.initial_x[i]
+        xk = cache1d.initial_x[i]
         Δxxk = Δx * xk
-        s_total += cache.initial_w[i] * (f(x₀ + Δxxk) + f(x₀ - Δxxk))
+        s_total += cache1d.initial_w[i] * (f(x₀ + Δxxk) + f(x₀ - Δxxk))
     end
 
     old_res = Δx * h * s_total
@@ -52,8 +61,8 @@ function adaptive_integrate_1D(::Type{T}, f::F, a, b;
     for level in 1:max_levels
         h *= half
         s_new = zero(T)
-        x_level = cache.xs[level]
-        w_level = cache.ws[level]
+        x_level = cache1d.xs[level]
+        w_level = cache1d.ws[level]
         @inbounds for i in eachindex(x_level)
             xk = x_level[i]
             Δxxk = Δx * xk
@@ -76,21 +85,24 @@ function adaptive_integrate_1D(::Type{T}, f::F, a, b;
 end
 
 """
-    adaptive_integrate_2D(::Type{T}, f, low::SVector{2,T}, up::SVector{2,T}; rtol, atol, max_levels::Int=8, warn::Bool=true)
+    adaptive_integrate_2D(::Type{T}, f, low::SVector{2,T}, up::SVector{2,T}; rtol, atol, max_levels::Int=8, warn::Bool=true, cache=nothing)
 
 Adaptive 2D Tanh-Sinh integration over a rectangle. Reuses indices by only evaluating new points 
 where at least one coordinate corresponds to an odd multiple of the halved step size `h`. 
 Exploits 4-way quadrant symmetry and 2-way axis symmetry.
+The error estimate is `abs(I_new - I_old)` between successive refinement levels,
+and refinement stops when it is below `max(atol, rtol * abs(I_new))`.
 """
 function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T};
     rtol=nothing, atol::Real=0, max_levels::Int=8,
-    warn::Bool=true) where {T<:Real,S}
+    warn::Bool=true, cache=nothing) where {T<:Real,S}
     rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
     Δx, x₀ = _midpoint_radius(low[1], up[1])
     Δy, y₀ = _midpoint_radius(low[2], up[2])
-    cache = _adaptive_tensor_cache(T, 2, max_levels)
+    cache2d = cache === nothing ? adaptive_cache_2D(T; max_levels=max_levels) :
+              _require_cache_levels(cache, max_levels)
     half = _half(T)
-    h = cache.tm * half
+    h = cache2d.tm * half
     w0 = T(π) * half
 
     # Helper to evaluate symmetric 4 quadrant points
@@ -110,9 +122,9 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
     # Initial Level 0 (h, 2h)
     s_total = (w0^2) * f(x₀, y₀)
     @inbounds for i in 1:2
-        xi, wi = cache.initial_x[i], cache.initial_w[i]
+        xi, wi = cache2d.initial_x[i], cache2d.initial_w[i]
         for j in 1:2
-            xj, wj = cache.initial_x[j], cache.initial_w[j]
+            xj, wj = cache2d.initial_x[j], cache2d.initial_w[j]
             s_total += eval_quadrants(xi, xj, wi, wj)
         end
         s_total += eval_axes(xi, wi)
@@ -124,8 +136,8 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
     for level in 1:max_levels
         h *= half
         s_new = zero(T)
-        x_level = cache.xs[level]
-        w_level = cache.ws[level]
+        x_level = cache2d.xs[level]
+        w_level = cache2d.ws[level]
         n = length(x_level)
 
         @inbounds for i in 1:n
@@ -156,21 +168,24 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
 end
 
 """
-    adaptive_integrate_3D(::Type{T}, f, low::SVector{3,T}, up::SVector{3,T}; rtol, atol, max_levels::Int=5, warn::Bool=true)
+    adaptive_integrate_3D(::Type{T}, f, low::SVector{3,T}, up::SVector{3,T}; rtol, atol, max_levels::Int=5, warn::Bool=true, cache=nothing)
 
 Adaptive 3D Tanh-Sinh integration over a box. Reuses old points and exploits 8-way octant 
 symmetry, 4-way plane symmetry, and 2-way axis symmetry to minimize function evaluations.
+The error estimate is `abs(I_new - I_old)` between successive refinement levels,
+and refinement stops when it is below `max(atol, rtol * abs(I_new))`.
 """
 function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3,T};
     rtol=nothing, atol::Real=0, max_levels::Int=5,
-    warn::Bool=true) where {T<:Real,S}
+    warn::Bool=true, cache=nothing) where {T<:Real,S}
     rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
     Δx, x₀ = _midpoint_radius(low[1], up[1])
     Δy, y₀ = _midpoint_radius(low[2], up[2])
     Δz, z₀ = _midpoint_radius(low[3], up[3])
-    cache = _adaptive_tensor_cache(T, 3, max_levels)
+    cache3d = cache === nothing ? adaptive_cache_3D(T; max_levels=max_levels) :
+              _require_cache_levels(cache, max_levels)
     half = _half(T)
-    h = cache.tm * half
+    h = cache3d.tm * half
     w₀ = T(π) * half
 
     # Evaluate a single point in the octant (8 reflections)
@@ -211,11 +226,11 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     # Initial Level 0 (k=1, 2)
     s_total = (w₀^3) * f(x₀, y₀, z₀)
     @inbounds for i in 1:2
-        vi, wi = cache.initial_x[i], cache.initial_w[i]
+        vi, wi = cache3d.initial_x[i], cache3d.initial_w[i]
         for j in 1:2
-            vj, wj = cache.initial_x[j], cache.initial_w[j]
+            vj, wj = cache3d.initial_x[j], cache3d.initial_w[j]
             for k in 1:2
-                vk, wk = cache.initial_x[k], cache.initial_w[k]
+                vk, wk = cache3d.initial_x[k], cache3d.initial_w[k]
                 s_total += add_octant(vi, vj, vk, wi, wj, wk)
             end
             s_total += add_planes(vi, vj, wi, wj)
@@ -229,8 +244,8 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     for level in 1:max_levels
         h *= half
         s_new = zero(T)
-        x_level = cache.xs[level]
-        w_level = cache.ws[level]
+        x_level = cache3d.xs[level]
+        w_level = cache3d.ws[level]
         n = length(x_level)
 
         @inbounds for i in 1:n
@@ -266,33 +281,36 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
 end
 
 """
-    adaptive_integrate_1D_cmpl(::Type{T}, f, a, b; rtol, atol, max_levels::Int=16, warn::Bool=true)
+    adaptive_integrate_1D_cmpl(::Type{T}, f, a, b; rtol, atol, max_levels::Int=16, warn::Bool=true, cache=nothing)
 
 Adaptive 1D Tanh-Sinh integration for endpoint-distance-aware integrands.
 For interval `[a, b]`, `f` should accept `f(x, b_minus_x, x_minus_a)`,
 where `b_minus_x = b - x` and `x_minus_a = x - a`.
 For the default interval `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
+The error estimate is `abs(I_new - I_old)` between successive refinement levels,
+and refinement stops when it is below `max(atol, rtol * abs(I_new))`.
 """
 function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
     rtol=nothing, atol::Real=0, max_levels::Int=16,
-    warn::Bool=true) where {T<:Real,F}
+    warn::Bool=true, cache=nothing) where {T<:Real,F}
     a_T, b_T = T(a), T(b)
     rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
     Δx, x₀ = _midpoint_radius(a_T, b_T)
-    cache = _adaptive_1d_cache(T, max_levels, :complement)
+    cache1d = cache === nothing ? adaptive_cache_1D(T; max_levels=max_levels, complement=true) :
+              _require_cache_levels(cache, max_levels)
     half = _half(T)
     one_T = one(T)
 
     # Complement coordinates remain accurate well beyond t_x_max(T),
     # so use the weight-based window to avoid truncating endpoint tails.
-    h = cache.tm * half
+    h = cache1d.tm * half
     w0 = T(π) * half
     s_total = w0 * f(x₀, Δx, Δx)
 
     @inbounds for i in 1:2
-        xk = cache.initial_x[i]
-        ck = cache.initial_c[i]
-        wk = cache.initial_w[i]
+        xk = cache1d.initial_x[i]
+        ck = cache1d.initial_c[i]
+        wk = cache1d.initial_w[i]
         Δxxk = Δx * xk
         Δxck = Δx * ck
         Δx1pxk = Δx * (one_T + xk)
@@ -310,9 +328,9 @@ function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
     for level in 1:max_levels
         h *= half
         s_new = zero(T)
-        x_level = cache.xs[level]
-        w_level = cache.ws[level]
-        c_level = cache.cs[level]
+        x_level = cache1d.xs[level]
+        w_level = cache1d.ws[level]
+        c_level = cache1d.cs[level]
         @inbounds for i in eachindex(x_level)
             xk = x_level[i]
             ck = c_level[i]

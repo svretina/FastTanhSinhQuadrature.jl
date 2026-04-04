@@ -313,6 +313,22 @@ function _adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol=:regular) w
     end
 end
 
+"""
+    adaptive_cache_1D(::Type{T}; max_levels::Int=16, complement::Bool=false) where {T<:Real}
+
+Return a reusable cache for `adaptive_integrate_1D` / `adaptive_integrate_1D_cmpl`.
+
+- Use `complement=false` (default) for `adaptive_integrate_1D`.
+- Use `complement=true` for `adaptive_integrate_1D_cmpl`.
+
+Passing the returned cache through the `cache=` keyword avoids rebuilding cache
+tables during repeated integrations.
+"""
+function adaptive_cache_1D(::Type{T}; max_levels::Int=16, complement::Bool=false) where {T<:Real}
+    kind = complement ? :complement : :regular
+    return _adaptive_1d_cache(T, max_levels, kind)
+end
+
 struct _AdaptiveTensorCache{T}
     tm::T
     initial_x::NTuple{2,T}
@@ -365,3 +381,19 @@ function _adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Re
         return cache::_AdaptiveTensorCache{T}
     end
 end
+
+"""
+    adaptive_cache_2D(::Type{T}; max_levels::Int=8) where {T<:Real}
+
+Return a reusable cache for `adaptive_integrate_2D`.
+"""
+adaptive_cache_2D(::Type{T}; max_levels::Int=8) where {T<:Real} =
+    _adaptive_tensor_cache(T, 2, max_levels)
+
+"""
+    adaptive_cache_3D(::Type{T}; max_levels::Int=5) where {T<:Real}
+
+Return a reusable cache for `adaptive_integrate_3D`.
+"""
+adaptive_cache_3D(::Type{T}; max_levels::Int=5) where {T<:Real} =
+    _adaptive_tensor_cache(T, 3, max_levels)

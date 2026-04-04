@@ -53,6 +53,7 @@ Supported Julia versions: `1.9` - `1.12`.
 ### Choosing an Interface
 
 - Use `quad` for one-off integrations and automatic refinement.
+- For repeated adaptive calls, prebuild an adaptive cache (`adaptive_cache_1D/2D/3D`) and pass `cache=...`.
 - Use `integrate1D`/`integrate2D`/`integrate3D` with pre-computed `(x, w, h)` when evaluating many integrals on the same geometry.
 - Use `_avx` variants for `Float32`/`Float64` when your integrand is compatible with `LoopVectorization`.
 - Use `quad_split` for interior singularities and `quad_cmpl` for endpoint-sensitive formulas involving `1-x` / `1+x`.
@@ -80,6 +81,22 @@ println(val)  # ≈ 2.0
 f(x) = 1 / sqrt(abs(x))  # Singular at x=0
 val = quad_split(f, 0.0, -1.0, 1.0)  # Split at singularity
 println(val)  # ≈ 4.0
+```
+
+### Reusing Adaptive Caches
+
+For repeated adaptive integrations, prebuild the cache outside your loop:
+
+```julia
+using FastTanhSinhQuadrature
+
+cache = adaptive_cache_1D(Float64; max_levels=16)
+
+for α in (0.5, 1.0, 2.0, 4.0)
+    f(x) = exp(-α * x^2)
+    val = quad(f, -1.0, 1.0; rtol=1e-10, atol=1e-12, cache=cache)
+    println((α, val))
+end
 ```
 
 ### High-Accuracy Interface: `quad_cmpl`
@@ -200,12 +217,12 @@ println(val)  # ≈ 1.0
 
 | Function | Description |
 |----------|-------------|
-| `quad(f; rtol, atol, max_levels)` | Adaptive 1D integration over `[-1, 1]` |
-| `quad(f, low, up; rtol, atol, max_levels)` | Adaptive 1D integration over `[low, up]` for `low, up <: Real` |
-| `quad_cmpl(f, low, up; ...)` | High-accuracy 1D integration for `f(x, b-x, x-a)` |
-| `quad(f, low, up; ...)` | Adaptive 2D/3D integration (accepts `SVector` or vectors of reals) |
-| `quad_split(f, c; ...)` | Split domain `[-1, 1]` at singularity `c` and integrate |
-| `quad_split(f, c, low, up; ...)` | Split domain `[low, up]` at singularity `c` and integrate |
+| `quad(f; rtol, atol, max_levels, cache)` | Adaptive 1D integration over `[-1, 1]` |
+| `quad(f, low, up; rtol, atol, max_levels, cache)` | Adaptive 1D integration over `[low, up]` for `low, up <: Real` |
+| `quad_cmpl(f, low, up; rtol, atol, max_levels, cache)` | High-accuracy 1D integration for `f(x, b-x, x-a)` |
+| `quad(f, low, up; rtol, atol, max_levels, cache)` | Adaptive 2D/3D integration (accepts `SVector` or vectors of reals) |
+| `quad_split(f, c; rtol, atol, max_levels, cache)` | Split domain `[-1, 1]` at singularity `c` and integrate |
+| `quad_split(f, c, low, up; rtol, atol, max_levels, cache)` | Split domain `[low, up]` at singularity `c` and integrate |
 
 ### Pre-computed Integration Functions
 | Function | Description |
@@ -236,10 +253,18 @@ println(val)  # ≈ 1.0
 
 | Function | Description |
 | :--- | :--- |
-| `adaptive_integrate_1D(T, f, a, b; rtol, atol, max_levels)` | Adaptive 1D with explicit type |
-| `adaptive_integrate_1D_cmpl(T, f, a, b; ...)` | Adaptive 1D with complement interface |
-| `adaptive_integrate_2D(T, f, low, up; ...)` | Adaptive 2D integration (cached nodes) |
-| `adaptive_integrate_3D(T, f, low, up; ...)` | Adaptive 3D integration (cached nodes) |
+| `adaptive_integrate_1D(T, f, a, b; rtol, atol, max_levels, warn, cache)` | Adaptive 1D with explicit type |
+| `adaptive_integrate_1D_cmpl(T, f, a, b; rtol, atol, max_levels, warn, cache)` | Adaptive 1D with complement interface |
+| `adaptive_integrate_2D(T, f, low, up; rtol, atol, max_levels, warn, cache)` | Adaptive 2D integration |
+| `adaptive_integrate_3D(T, f, low, up; rtol, atol, max_levels, warn, cache)` | Adaptive 3D integration |
+
+### Adaptive Cache Utilities
+
+| Function | Description |
+| :--- | :--- |
+| `adaptive_cache_1D(T; max_levels=16, complement=false)` | Reusable cache for 1D adaptive calls |
+| `adaptive_cache_2D(T; max_levels=8)` | Reusable cache for 2D adaptive calls |
+| `adaptive_cache_3D(T; max_levels=5)` | Reusable cache for 3D adaptive calls |
 
 ---
 
@@ -259,10 +284,12 @@ Comparison across:
 - `FastGaussQuadrature.jl` (1D)
 
 Methodology:
-- Domain: `[-1,1]^d`
+- Domain: case-dependent (most tests use `[-1,1]^d`; oscillatory 1D uses `[-π,π]`)
 - Tolerances: `rtol = 1e-6`, `atol = 1e-8`
 - Max evaluations (external adaptive solvers): `200000`
 - Timing: `@belapsed` with interpolation (`samples=3`, `evals=1`)
+- One warm call is executed before each timed benchmark.
+- Adaptive cache construction is excluded from timed regions (caches are prebuilt).
 
 The plot below summarizes the speedup of the `quad` and `_avx` interfaces relative to the fastest accurate competing method on each benchmark case.
 
@@ -272,16 +299,17 @@ The plot below summarizes the speedup of the `quad` and `_avx` interfaces relati
 
 | Dim | Function | FTS adaptive | FTS quad | FTS avx | QuadGK | HCubature | Cubature h | Cubature p | Cuba Vegas | Cuba Divonne | Cuba Cuhre | FastGauss |
 | :-- | :------- | ----------: | -------: | ------: | -----: | --------: | ---------: | ---------: | ---------: | -----------: | ---------: | --------: |
-| 1D | 1/(1+25x^2) | 4058.0000 | 4126.0000 | 217.0000 | 375.0000 | 1.180e+04 | 1.385e+04 | 1.246e+04 | n/a | n/a | n/a | 97.0000 |
-| 1D | 1/sqrt(1-x^2) | 1102.0000 | 988.0000 | 339.0000 | 6646.0000 | 1.836e+05 | 1.634e+05 | 766.0000 * | n/a | n/a | n/a | 9401.0000 * |
-| 1D | log(1-x) | 1496.0000 | 1513.0000 | 247.0000 | 3399.0000 | 4.422e+04 | 5.497e+04 | 732.0000 * | n/a | n/a | n/a | 9460.0000 |
-| 1D | x^6 - 2x^3 + 0.5 | 2330.0000 | 2221.0000 | 307.0000 | 322.0000 | 7359.0000 | 1591.0000 | 3107.0000 | n/a | n/a | n/a | 77.0000 |
-| 2D | 1/sqrt((1-x^2)(1-y^2)) | 3240.0000 | 3383.0000 | 578.0000 | n/a | 4.455e+07 | 2.752e+07 | 1468.0000 * | 2.470e+07 * | 3.780e+07 * | 2.308e+07 * | n/a |
-| 2D | exp(x+y) | 1.602e+04 | 1.712e+04 | 933.0000 | n/a | 7.078e+04 | 3.199e+04 | 3.125e+04 | 2.408e+07 * | 2.283e+07 | 2.523e+04 | n/a |
-| 2D | x^2 + y^2 | 3400.0000 | 3621.0000 | 294.0000 | n/a | 5857.0000 | 1882.0000 | 7069.0000 | 2.351e+07 * | 2.297e+07 | 2.711e+04 | n/a |
-| 3D | 1/sqrt((1-x^2)(1-y^2)(1-z^2)) | 7.509e+04 | 7.803e+04 | 748.0000 | n/a | 2.778e+07 * | 2.071e+07 * | 3250.0000 * | 2.452e+07 * | 3.176e+07 * | 2.270e+07 * | n/a |
-| 3D | exp(x+y+z) | 8.888e+05 | 8.946e+05 | 1.106e+04 | n/a | 3.228e+05 | 2.271e+05 | 6.014e+05 | 2.682e+07 * | 2.953e+07 * | 4.272e+04 | n/a |
-| 3D | x^2*y^2*z^2 | 5.562e+04 | 5.563e+04 | 688.0000 | n/a | 9.873e+06 | 7.470e+06 | 1.751e+04 | 2.682e+07 * | 3.513e+07 * | 9.269e+06 | n/a |
+| 1D | 1/(1+25x^2) | 735.0000 | 628.0000 | 474.0000 | 1612.0000 | 1.620e+04 | 1.644e+04 | 2.007e+04 | n/a | n/a | n/a | 176.0000 |
+| 1D | 1/sqrt(1-x^2) | 574.0000 | 528.0000 | 523.0000 | 1.154e+04 | 2.189e+05 | 2.389e+05 | 2834.0000 * | n/a | n/a | n/a | 1.146e+04 * |
+| 1D | log(1-x) | 1013.0000 | 592.0000 | 442.0000 | 5237.0000 | 6.031e+04 | 7.402e+04 | 1356.0000 * | n/a | n/a | n/a | 1.208e+04 |
+| 1D | sin^2(1000x) | 1.770e+05 | 2.542e+05 | 2.909e+04 | 1.142e+04 | 1.313e+05 | 1.041e+05 | 1301.0000 * | n/a | n/a | n/a | 3.748e+04 |
+| 1D | x^6 - 2x^3 + 0.5 | 1306.0000 | 803.0000 | 335.0000 | 1898.0000 | 4813.0000 | 2249.0000 | 8949.0000 | n/a | n/a | n/a | 118.0000 |
+| 2D | 1/sqrt((1-x^2)(1-y^2)) | 3663.0000 | 3660.0000 | 1865.0000 | n/a | 5.218e+07 | 2.832e+07 | 2433.0000 * | 9.357e+07 * | 1.140e+08 * | 9.744e+07 * | n/a |
+| 2D | exp(x+y) | 1.864e+04 | 2.438e+04 | 5720.0000 | n/a | 8.769e+04 | 4.420e+04 | 3.861e+04 | 9.402e+07 * | 8.362e+07 | 6.697e+04 | n/a |
+| 2D | x^2 + y^2 | 2678.0000 | 2153.0000 | 1968.0000 | n/a | 9986.0000 | 5980.0000 | 9098.0000 | 8.497e+07 * | 7.713e+07 | 6.858e+04 | n/a |
+| 3D | 1/sqrt((1-x^2)(1-y^2)(1-z^2)) | 1.168e+05 | 1.153e+05 | 7.367e+04 | n/a | 3.339e+07 * | 3.151e+07 * | 5400.0000 * | 1.320e+08 * | 1.391e+08 * | 1.111e+08 * | n/a |
+| 3D | exp(x+y+z) | 1.049e+06 | 1.069e+06 | 3.401e+05 | n/a | 3.619e+05 | 3.170e+05 | 7.207e+05 | 1.178e+08 * | 1.283e+08 * | 1.795e+05 | n/a |
+| 3D | x^2*y^2*z^2 | 7.994e+04 | 7.634e+04 | 2.207e+04 | n/a | 1.345e+07 | 8.682e+06 | 2.441e+04 | 1.055e+08 * | 1.318e+08 * | 4.454e+07 | n/a |
 
 `*` indicates the method did not meet the requested tolerance.
 
@@ -289,6 +317,30 @@ Full raw results are written by the benchmark script to:
 - `benchmark/results/timings.csv`
 - `benchmark/results/timings_full.md`
 - `benchmark/results/timings_summary.md`
+
+## Other Julia quadrature packages
+
+Use the package choice that matches your integrand class.
+
+From this repository’s current benchmark suite (`rtol=1e-6`, `atol=1e-8`):
+
+- This package is excellent for endpoint-dominated 1D integrands. Examples:
+  - `1/sqrt(1-x^2)`: `quad` (`528 ns`) vs `QuadGK` (`1.154e+04 ns`)
+  - `log(1-x)`: `quad` (`592 ns`) vs `QuadGK` (`5237 ns`)
+- This package is not the best adaptive default for strongly oscillatory 1D integrals. Example:
+  - `sin^2(1000x)`: `quad` (`2.542e+05 ns`) vs `QuadGK` (`1.142e+04 ns`)
+  - Even precomputed `integrate1D_avx` (`2.909e+04 ns`) is still slower than `QuadGK` on this case.
+- For smooth low-order 1D functions, all three approaches can be good, and fixed Gaussian rules can win when `N` is calibrated. Example:
+  - `x^6 - 2x^3 + 0.5`: `FastGauss` (`118 ns`) vs `quad` (`803 ns`) vs `QuadGK` (`1898 ns`)
+- In 2D/3D box integrals, this package is often very competitive and consistently meets tolerance in our endpoint-singular test cases where several alternatives exceed tolerance/eval budgets.
+
+Practical selection guide:
+
+- Use `FastTanhSinhQuadrature.jl` when endpoint behavior is the main difficulty, or when you can reuse precomputed nodes/caches across many calls.
+- Use `QuadGK.jl` as the first choice for many oscillatory or locally difficult 1D integrals.
+- Use `FastGaussQuadrature.jl` when a fixed high-order Gaussian rule (possibly weighted) matches your problem well.
+- For multidimensional cubature, also compare `HCubature.jl`, `Cubature.jl`, and `Cuba.jl`.
+- If function values are only available on a fixed grid (not callable at arbitrary points), use sampled-data packages like `Trapz.jl`, `Romberg.jl`, or `NumericalIntegration.jl`.
 
 ## Contributing
 
