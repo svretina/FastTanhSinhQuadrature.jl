@@ -96,6 +96,7 @@ end
 @testset "FastTanhSinhQuadrature.jl" begin
 
     include("core.jl")
+    include("caches.jl")
 
     @testset "Basic integration T=$T" for T in Types
         f0(x) = one(T)
@@ -213,6 +214,21 @@ end
             val_d = quad(f, Double64(0.0), Double64(1.0); rtol=1e-15)
             @test isapprox(val_d, val_true, atol=1e-15)
         end
+    end
+
+    @testset "Adaptive warning paths" begin
+        @test_logs (:warn, r"adaptive_integrate_2D reached max_levels") adaptive_integrate_2D(
+            Float64, (x, y) -> exp(x + y), SVector(-1.0, -1.0), SVector(1.0, 1.0);
+            rtol=0.0, atol=0.0, max_levels=1, warn=true, cache=adaptive_cache_2D(Float64; max_levels=1)
+        )
+        @test_logs (:warn, r"adaptive_integrate_3D reached max_levels") adaptive_integrate_3D(
+            Float64, (x, y, z) -> exp(x + y + z), SVector(-1.0, -1.0, -1.0), SVector(1.0, 1.0, 1.0);
+            rtol=0.0, atol=0.0, max_levels=1, warn=true, cache=adaptive_cache_3D(Float64; max_levels=1)
+        )
+        @test_logs (:warn, r"adaptive_integrate_1D_cmpl reached max_levels") adaptive_integrate_1D_cmpl(
+            Float64, (x, bmx, xma) -> exp(x) + bmx + xma, -1.0, 1.0;
+            rtol=0.0, atol=0.0, max_levels=1, warn=true, cache=adaptive_cache_1D(Float64; max_levels=1, complement=true)
+        )
     end
 
     @testset "Type preservation and inference" begin

@@ -29,7 +29,7 @@ const _HALF_PI = π / 2
     return half * (up - low), half * (up + low)
 end
 
-@inline function _resolve_tolerances(::Type{T}; rtol=nothing, atol::Real=0) where {T<:Real}
+@inline function _resolve_tolerances(::Type{T}, rtol, atol::Real=0) where {T<:Real}
     atol_T = T(atol)
     rtol_T = if rtol !== nothing
         T(rtol)
@@ -42,6 +42,9 @@ end
     atol_T >= zero(T) || throw(ArgumentError("`atol` must be nonnegative."))
     return rtol_T, atol_T
 end
+
+@inline _resolve_tolerances(::Type{T}; rtol=nothing, atol::Real=0) where {T<:Real} =
+    _resolve_tolerances(T, rtol, atol)
 
 @inline _error_target(I::T, rtol::T, atol::T) where {T<:Real} = max(atol, rtol * abs(I))
 

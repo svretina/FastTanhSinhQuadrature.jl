@@ -25,14 +25,10 @@ new (odd-indexed) nodes. Exploits symmetry around the center of the interval.
 The error estimate is `abs(I_new - I_old)` between successive refinement levels,
 and refinement stops when it is below `max(atol, rtol * abs(I_new))`.
 """
-function adaptive_integrate_1D(::Type{T}, f::F, a, b;
-    rtol=nothing, atol::Real=0, max_levels::Int=16,
-    warn::Bool=true, cache=nothing) where {T<:Real,F}
-    a_T, b_T = T(a), T(b)
-    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
+function adaptive_integrate_1D(::Type{T}, f::F, a_T::T, b_T::T,
+    rtol_T::T, atol_T::T, max_levels::Int,
+    warn::Bool, cache1d::_Adaptive1DCache{T}) where {T<:Real,F}
     Δx, x₀ = _midpoint_radius(a_T, b_T)
-    cache1d = cache === nothing ? adaptive_cache_1D(T; max_levels=max_levels) :
-              _require_cache_levels(cache, max_levels)
     half = _half(T)
 
     # Initial Grid (Level 0)
@@ -79,6 +75,16 @@ function adaptive_integrate_1D(::Type{T}, f::F, a, b;
     return old_res
 end
 
+function adaptive_integrate_1D(::Type{T}, f::F, a, b;
+    rtol=nothing, atol::Real=0, max_levels::Int=16,
+    warn::Bool=true, cache=nothing) where {T<:Real,F}
+    a_T, b_T = T(a), T(b)
+    rtol_T, atol_T = _resolve_tolerances(T, rtol, atol)
+    cache1d = cache === nothing ? adaptive_cache_1D(T; max_levels=max_levels) :
+              _require_cache_levels(cache, max_levels)
+    return adaptive_integrate_1D(T, f, a_T, b_T, rtol_T, atol_T, max_levels, warn, cache1d)
+end
+
 """
     adaptive_integrate_2D(::Type{T}, f, low::SVector{2,T}, up::SVector{2,T}; rtol, atol, max_levels::Int=8, warn::Bool=true, cache=nothing)
 
@@ -88,14 +94,11 @@ Exploits 4-way quadrant symmetry and 2-way axis symmetry.
 The error estimate is `abs(I_new - I_old)` between successive refinement levels,
 and refinement stops when it is below `max(atol, rtol * abs(I_new))`.
 """
-function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T};
-    rtol=nothing, atol::Real=0, max_levels::Int=8,
-    warn::Bool=true, cache=nothing) where {T<:Real,S}
-    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
+function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T},
+    rtol_T::T, atol_T::T, max_levels::Int,
+    warn::Bool, cache2d::_AdaptiveTensorCache{T}) where {T<:Real,S}
     Δx, x₀ = _midpoint_radius(low[1], up[1])
     Δy, y₀ = _midpoint_radius(low[2], up[2])
-    cache2d = cache === nothing ? adaptive_cache_2D(T; max_levels=max_levels) :
-              _require_cache_levels(cache, max_levels)
     half = _half(T)
     h = cache2d.tm * half
     w0 = _half_pi(T)
@@ -163,6 +166,15 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
         @warn "adaptive_integrate_2D reached max_levels without meeting the requested tolerance." max_levels estimated_error = err_est target = _error_target(old_res, rtol_T, atol_T) value = old_res rtol = rtol_T atol = atol_T
     end
     return old_res
+end
+
+function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T};
+    rtol=nothing, atol::Real=0, max_levels::Int=8,
+    warn::Bool=true, cache=nothing) where {T<:Real,S}
+    rtol_T, atol_T = _resolve_tolerances(T, rtol, atol)
+    cache2d = cache === nothing ? adaptive_cache_2D(T; max_levels=max_levels) :
+              _require_cache_levels(cache, max_levels)
+    return adaptive_integrate_2D(T, f, low, up, rtol_T, atol_T, max_levels, warn, cache2d)
 end
 
 function adaptive_integrate_2D_test(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T};
@@ -264,15 +276,12 @@ symmetry, 4-way plane symmetry, and 2-way axis symmetry to minimize function eva
 The error estimate is `abs(I_new - I_old)` between successive refinement levels,
 and refinement stops when it is below `max(atol, rtol * abs(I_new))`.
 """
-function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3,T};
-    rtol=nothing, atol::Real=0, max_levels::Int=5,
-    warn::Bool=true, cache=nothing) where {T<:Real,S}
-    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
+function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3,T},
+    rtol_T::T, atol_T::T, max_levels::Int,
+    warn::Bool, cache3d::_AdaptiveTensorCache{T}) where {T<:Real,S}
     Δx, x₀ = _midpoint_radius(low[1], up[1])
     Δy, y₀ = _midpoint_radius(low[2], up[2])
     Δz, z₀ = _midpoint_radius(low[3], up[3])
-    cache3d = cache === nothing ? adaptive_cache_3D(T; max_levels=max_levels) :
-              _require_cache_levels(cache, max_levels)
     half = _half(T)
     h = cache3d.tm * half
     w₀ = _half_pi(T)
@@ -392,6 +401,15 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     return old_res
 end
 
+function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3,T};
+    rtol=nothing, atol::Real=0, max_levels::Int=5,
+    warn::Bool=true, cache=nothing) where {T<:Real,S}
+    rtol_T, atol_T = _resolve_tolerances(T, rtol, atol)
+    cache3d = cache === nothing ? adaptive_cache_3D(T; max_levels=max_levels) :
+              _require_cache_levels(cache, max_levels)
+    return adaptive_integrate_3D(T, f, low, up, rtol_T, atol_T, max_levels, warn, cache3d)
+end
+
 """
     adaptive_integrate_1D_cmpl(::Type{T}, f, a, b; rtol, atol, max_levels::Int=16, warn::Bool=true, cache=nothing)
 
@@ -402,14 +420,10 @@ For the default interval `[-1, 1]`, this is `f(x, 1-x, 1+x)`.
 The error estimate is `abs(I_new - I_old)` between successive refinement levels,
 and refinement stops when it is below `max(atol, rtol * abs(I_new))`.
 """
-function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
-    rtol=nothing, atol::Real=0, max_levels::Int=16,
-    warn::Bool=true, cache=nothing) where {T<:Real,F}
-    a_T, b_T = T(a), T(b)
-    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
+function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a_T::T, b_T::T,
+    rtol_T::T, atol_T::T, max_levels::Int,
+    warn::Bool, cache1d::_Adaptive1DCache{T}) where {T<:Real,F}
     Δx, x₀ = _midpoint_radius(a_T, b_T)
-    cache1d = cache === nothing ? adaptive_cache_1D(T; max_levels=max_levels, complement=true) :
-              _require_cache_levels(cache, max_levels)
     half = _half(T)
     one_T = one(T)
 
@@ -466,4 +480,14 @@ function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
         @warn "adaptive_integrate_1D_cmpl reached max_levels without meeting the requested tolerance." max_levels estimated_error = err_est target = _error_target(old_res, rtol_T, atol_T) value = old_res rtol = rtol_T atol = atol_T
     end
     return old_res
+end
+
+function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
+    rtol=nothing, atol::Real=0, max_levels::Int=16,
+    warn::Bool=true, cache=nothing) where {T<:Real,F}
+    a_T, b_T = T(a), T(b)
+    rtol_T, atol_T = _resolve_tolerances(T, rtol, atol)
+    cache1d = cache === nothing ? adaptive_cache_1D(T; max_levels=max_levels, complement=true) :
+              _require_cache_levels(cache, max_levels)
+    return adaptive_integrate_1D_cmpl(T, f, a_T, b_T, rtol_T, atol_T, max_levels, warn, cache1d)
 end

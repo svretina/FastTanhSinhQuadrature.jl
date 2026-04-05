@@ -13,9 +13,11 @@
         ψ_avx = integrate3D_avx(f3_const, x, w, h)
         odd_avx = integrate3D_avx(f3_xyz, x, w, h)
         even_avx = integrate3D_avx(f3_x2y2z2, x, w, h)
+        ψ_avx_box = integrate3D_avx(f3_const, SVector(-one(T), -one(T), -one(T)), SVector(one(T), one(T), one(T)), x, w, h)
         @test isapprox(ψ_avx, ψ, atol=T == Float32 ? T(2e-5) : T(1e-12))
         @test isapprox(odd_avx, odd, atol=T == Float32 ? T(2e-6) : T(1e-14))
         @test isapprox(even_avx, even, atol=T == Float32 ? T(2e-6) : T(1e-13))
+        @test isapprox(ψ_avx_box, ψ, atol=T == Float32 ? T(2e-5) : T(1e-12))
     end
 end
 

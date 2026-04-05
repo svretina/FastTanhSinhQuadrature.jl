@@ -18,8 +18,6 @@ It handles **singularities at endpoints** robustly, supports **arbitrary precisi
 
 The implementation follows the method introduced by [Takahasi & Mori (1973)](https://doi.org/10.2977/PRIMS/1195192451).
 
-![Convergence of Tanh-Sinh Quadrature](assets/convergence.svg)
-
 ## Quick Start
 
 ```julia
@@ -77,8 +75,6 @@ Pre-computed and high-level interfaces accept mixed real bounds (`Int`, `Float64
 - [API Reference](api.md): Detailed function documentation.
 
 ## Other Julia quadrature packages
-
-No single quadrature method dominates every integrand class.
 
 Benchmark-based guidance from this repository (`rtol=1e-6`, `atol=1e-8`):
 
