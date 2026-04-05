@@ -23,6 +23,9 @@ using LoopVectorization
 # Core transformation functions and node generation
 include("core.jl")
 
+# Cache construction and validation
+include("caches.jl")
+
 # 1D Integration
 include("integrate1D.jl")
 

@@ -16,7 +16,13 @@
 
 # Core Tanh-Sinh quadrature functions: transformation, weights, and node generation
 
+const _HALF_PI = π / 2
+
 @inline _half(::Type{T}) where {T<:Real} = inv(one(T) + one(T))
+
+@inline _half_pi(::Type{Float64}) = _HALF_PI
+@inline _half_pi(::Type{Float32}) = Float32(_HALF_PI)
+@inline _half_pi(::Type{T}) where {T<:Real} = T(π) * _half(T)
 
 @inline function _midpoint_radius(low::T, up::T) where {T<:Real}
     half = _half(T)
@@ -56,6 +62,18 @@ end
     return half * (ex - inv_ex), half * (ex + inv_ex)
 end
 
+@inline function _sinh_generic(x::T) where {T<:Real}
+    ex = exp(x)
+    inv_ex = inv(ex)
+    return _half(T) * (ex - inv_ex)
+end
+
+@inline function _cosh_generic(x::T) where {T<:Real}
+    ex = exp(x)
+    inv_ex = inv(ex)
+    return _half(T) * (ex + inv_ex)
+end
+
 @inline function _tanh_generic(x::T) where {T<:Real}
     two = one(T) + one(T)
     if x >= zero(T)
@@ -88,12 +106,26 @@ end
     return tanh(x)
 end
 
+@inline function _sinh_compat(x::T) where {T<:Real}
+    if _needs_generic_hyperbolics(T)
+        return _sinh_generic(x)
+    end
+    return sinh(x)
+end
+
+@inline function _cosh_compat(x::T) where {T<:Real}
+    if _needs_generic_hyperbolics(T)
+        return _cosh_generic(x)
+    end
+    return cosh(x)
+end
+
 @inline function ordinate(t::T) where {T<:Real}
     # x = tanh(π/2 * sinh(t))
     # Stability: For large t, tanh(u) -> 1 - 2exp(-2u). 
     # Directly using tanh is fine for most cases, but we guard against rounding to 1.0.
-    sinh_t, = _sinhcosh_compat(t)
-    val = _tanh_compat(T(π) / 2 * sinh_t)
+    sinh_t = _sinh_compat(t)
+    val = _tanh_compat(_half_pi(T) * sinh_t)
 
     if val >= one(T)
         return prevfloat(one(T))
@@ -103,32 +135,50 @@ end
     return val
 end
 
+@inline function _ordinate_weight(t::T) where {T<:Real}
+    half_pi = _half_pi(T)
+    sinh_t, cosh_t = _sinhcosh_compat(t)
+    arg = half_pi * sinh_t
+    x = _tanh_compat(arg)
+    if x >= one(T)
+        x = prevfloat(one(T))
+    elseif x <= -one(T)
+        x = -prevfloat(one(T))
+    end
+    if abs(arg) > T(700.0)
+        return x, zero(T)
+    end
+    tmp = _cosh_compat(arg)
+    return x, (half_pi * cosh_t) / (tmp * tmp)
+end
+
 """
     ordinate_complement(t::T) where {T<:Real}
 
 Return 1 - |ordinate(t)| accurately. Useful for f(1-x).
 """
 @inline function ordinate_complement(t::T) where {T<:Real}
-    sinh_abs_t, = _sinhcosh_compat(abs(t))
-    u = (T(π) / 2) * sinh_abs_t
+    two = one(T) + one(T)
+    u = _half_pi(T) * _sinh_compat(abs(t))
     # 1 - tanh(u) = 2*exp(-2u) / (1 + exp(-2u))
     # This avoids overflow in exp(2u) while preserving endpoint accuracy.
-    z = exp(-2u)
-    return 2 * z / (one(T) + z)
+    z = exp(-two * u)
+    return two * z / (one(T) + z)
 end
 
 @inline function weight(t::T) where {T<:Real}
+    half_pi = _half_pi(T)
     sinh_t, cosh_t = _sinhcosh_compat(t)
-    arg = T(π) / 2 * sinh_t
+    arg = half_pi * sinh_t
     # Stability: cosh can overflow for large t.
     # If the denominator cosh^2(...) would overflow, the weight is effectively 0.
     # For Float64, cosh(710) overflows.
     if abs(arg) > T(700.0)
         return zero(T)
     end
-    _, tmp = _sinhcosh_compat(arg)
+    tmp = _cosh_compat(arg)
     # weight = (π/2 * cosh(t)) / cosh^2(π/2 * sinh(t))
-    return ((T(π) / 2) * cosh_t) / (tmp * tmp)
+    return (half_pi * cosh_t) / (tmp * tmp)
 end
 
 @inline function inv_ordinate(t::T) where {T<:Real}
@@ -183,17 +233,16 @@ Generate Tanh-Sinh quadrature nodes `x`, weights `w`, and step size `h` for a gi
 Use this for approximately N<128
 """
 function tanhsinh(::Type{T}, ::Val{N}; D::Int=1) where {T<:AbstractFloat,N}
-    if iseven(N)
-        n = N ÷ 2
-    else
-        n = (N - 1) ÷ 2
-    end
+    n = iseven(N) ? N ÷ 2 : (N - 1) ÷ 2
     tm = tmax(T, D)
     h = tm / n
     t = range(h, tm, length=n)
-    x = ordinate.(t)
-    w = weight.(t)
-    return SVector{n,T}(x), SVector{n,T}(w), h
+    x = MVector{n,T}(undef)
+    w = MVector{n,T}(undef)
+    @inbounds for i in eachindex(t)
+        x[i], w[i] = _ordinate_weight(t[i])
+    end
+    return SVector(x), SVector(w), h
 end
 
 """
@@ -202,16 +251,15 @@ end
 Generate Tanh-Sinh quadrature nodes `x`, weights `w`, and step size `h` for a given floating point type `T` and number of points `N`.
 """
 function tanhsinh(::Type{T}, N::Int; D::Int=1) where {T<:AbstractFloat}
-    if iseven(N)
-        n = N ÷ 2
-    else
-        n = (N - 1) ÷ 2
-    end
+    n = iseven(N) ? N ÷ 2 : (N - 1) ÷ 2
     tm = tmax(T, D)
     h = tm / n
     t = range(h, tm, length=n)
-    x = ordinate.(t)
-    w = weight.(t)
+    x = Vector{T}(undef, n)
+    w = Vector{T}(undef, n)
+    @inbounds for i in eachindex(t)
+        x[i], w[i] = _ordinate_weight(t[i])
+    end
     return x, w, h
 end
 
@@ -249,146 +297,3 @@ end
     tm = tmax(T, D)
     return tm / n
 end
-
-struct _Adaptive1DCache{T}
-    tm::T
-    initial_x::NTuple{2,T}
-    initial_w::NTuple{2,T}
-    initial_c::NTuple{2,T}
-    xs::Vector{Vector{T}}
-    ws::Vector{Vector{T}}
-    cs::Vector{Vector{T}}
-end
-
-@inline _adaptive_1d_window(::Type{T}, kind::Symbol) where {T<:Real} =
-    kind === :complement ? t_w_max(T, 1) : tmax(T)
-
-const _ADAPTIVE_1D_CACHES = Dict{Tuple{DataType, Int, Symbol}, Any}()
-const _ADAPTIVE_1D_CACHES_LOCK = ReentrantLock()
-
-function _build_adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol) where {T<:Real}
-    max_levels >= 0 || throw(ArgumentError("`max_levels` must be nonnegative."))
-    tm = _adaptive_1d_window(T, kind)
-    half = _half(T)
-    h = tm * half
-
-    h1 = h
-    h2 = h + h
-    initial_x = (ordinate(h1), ordinate(h2))
-    initial_w = (weight(h1), weight(h2))
-    initial_c = (ordinate_complement(h1), ordinate_complement(h2))
-
-    xs = Vector{Vector{T}}(undef, max_levels)
-    ws = Vector{Vector{T}}(undef, max_levels)
-    cs = Vector{Vector{T}}(undef, max_levels)
-    for level in 1:max_levels
-        h *= half
-        n = 1 << level
-        x = Vector{T}(undef, n)
-        w = Vector{T}(undef, n)
-        c = Vector{T}(undef, n)
-        @inbounds for i in 1:n
-            tk = (2i - 1) * h
-            x[i] = ordinate(tk)
-            w[i] = weight(tk)
-            c[i] = ordinate_complement(tk)
-        end
-        xs[level] = x
-        ws[level] = w
-        cs[level] = c
-    end
-    return _Adaptive1DCache{T}(tm, initial_x, initial_w, initial_c, xs, ws, cs)
-end
-
-function _adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol=:regular) where {T<:Real}
-    key = (T, max_levels, kind)
-    Base.@lock _ADAPTIVE_1D_CACHES_LOCK begin
-        cache = get!(_ADAPTIVE_1D_CACHES, key) do
-            _build_adaptive_1d_cache(T, max_levels, kind)
-        end
-        return cache::_Adaptive1DCache{T}
-    end
-end
-
-"""
-    adaptive_cache_1D(::Type{T}; max_levels::Int=16, complement::Bool=false) where {T<:Real}
-
-Return a reusable cache for `adaptive_integrate_1D` / `adaptive_integrate_1D_cmpl`.
-
-- Use `complement=false` (default) for `adaptive_integrate_1D`.
-- Use `complement=true` for `adaptive_integrate_1D_cmpl`.
-
-Passing the returned cache through the `cache=` keyword avoids rebuilding cache
-tables during repeated integrations.
-"""
-function adaptive_cache_1D(::Type{T}; max_levels::Int=16, complement::Bool=false) where {T<:Real}
-    kind = complement ? :complement : :regular
-    return _adaptive_1d_cache(T, max_levels, kind)
-end
-
-struct _AdaptiveTensorCache{T}
-    tm::T
-    initial_x::NTuple{2,T}
-    initial_w::NTuple{2,T}
-    xs::Vector{Vector{T}}
-    ws::Vector{Vector{T}}
-end
-
-const _ADAPTIVE_TENSOR_CACHES = Dict{Tuple{DataType, Int, Int}, Any}()
-const _ADAPTIVE_TENSOR_CACHES_LOCK = ReentrantLock()
-
-function _build_adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Real}
-    max_levels >= 0 || throw(ArgumentError("`max_levels` must be nonnegative."))
-    tm = tmax(T, D)
-    half = _half(T)
-    h = tm * half
-
-    h1 = h
-    h2 = h + h
-    initial_x = (ordinate(h1), ordinate(h2))
-    initial_w = (weight(h1), weight(h2))
-
-    xs = Vector{Vector{T}}(undef, max_levels)
-    ws = Vector{Vector{T}}(undef, max_levels)
-    max_k = 2
-    for level in 1:max_levels
-        h *= half
-        max_k *= 2
-        x = Vector{T}(undef, max_k)
-        w = Vector{T}(undef, max_k)
-        @inbounds for i in 1:max_k
-            ti = T(i) * h
-            x[i] = ordinate(ti)
-            w[i] = weight(ti)
-        end
-        xs[level] = x
-        ws[level] = w
-    end
-    return _AdaptiveTensorCache{T}(tm, initial_x, initial_w, xs, ws)
-end
-
-function _adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Real}
-    key = (T, D, max_levels)
-    Base.@lock _ADAPTIVE_TENSOR_CACHES_LOCK begin
-        cache = get!(_ADAPTIVE_TENSOR_CACHES, key) do
-            _build_adaptive_tensor_cache(T, D, max_levels)
-        end
-        return cache::_AdaptiveTensorCache{T}
-    end
-end
-
-"""
-    adaptive_cache_2D(::Type{T}; max_levels::Int=8) where {T<:Real}
-
-Return a reusable cache for `adaptive_integrate_2D`.
-"""
-adaptive_cache_2D(::Type{T}; max_levels::Int=8) where {T<:Real} =
-    _adaptive_tensor_cache(T, 2, max_levels)
-
-"""
-    adaptive_cache_3D(::Type{T}; max_levels::Int=5) where {T<:Real}
-
-Return a reusable cache for `adaptive_integrate_3D`.
-"""
-adaptive_cache_3D(::Type{T}; max_levels::Int=5) where {T<:Real} =
-    _adaptive_tensor_cache(T, 3, max_levels)
