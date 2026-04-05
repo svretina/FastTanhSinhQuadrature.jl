@@ -17,6 +17,19 @@
     @test FastTanhSinhQuadrature.ordinate(50.0) == prevfloat(1.0)
     @test FastTanhSinhQuadrature.ordinate(-50.0) == -prevfloat(1.0)
     @test FastTanhSinhQuadrature.weight(8.0) == 0.0
+    x_big_pos, w_big_pos = FastTanhSinhQuadrature._ordinate_weight(8.0)
+    x_big_neg, w_big_neg = FastTanhSinhQuadrature._ordinate_weight(-8.0)
+    @test x_big_pos == prevfloat(1.0)
+    @test x_big_neg == -prevfloat(1.0)
+    @test w_big_pos == 0.0
+    @test w_big_neg == 0.0
+
+    @test isapprox(FastTanhSinhQuadrature._tanh_generic(1.25), tanh(1.25), rtol=eps(Float64))
+    @test isapprox(FastTanhSinhQuadrature._tanh_generic(-1.25), tanh(-1.25), rtol=eps(Float64))
+
+    mf_t = Float64x2(0.5)
+    @test FastTanhSinhQuadrature._needs_generic_hyperbolics(Float64x2)
+    @test FastTanhSinhQuadrature._sinh_compat(mf_t) == FastTanhSinhQuadrature._sinh_generic(mf_t)
 
     tx = FastTanhSinhQuadrature.t_x_max(Float64)
     tw = FastTanhSinhQuadrature.t_w_max(Float64, 3)

@@ -16,6 +16,12 @@
 
 # Adaptive cache construction and validation
 
+"""
+    _require_cache_levels(cache, max_levels::Int)
+
+Validate that a provided adaptive cache contains at least `max_levels`
+refinement tables, returning the cache unchanged on success.
+"""
 @inline function _require_cache_levels(cache, max_levels::Int)
     length(cache.xs) >= max_levels ||
         throw(ArgumentError("provided adaptive cache supports $(length(cache.xs)) levels, but `max_levels=$(max_levels)` was requested."))
@@ -32,12 +38,24 @@ struct _Adaptive1DCache{T}
     cs::Vector{Vector{T}}
 end
 
+"""
+    _adaptive_1d_window(::Type{T}, kind::Symbol) where {T<:Real}
+
+Return the tanh-sinh truncation window used when building 1D adaptive caches.
+Regular caches use `tmax(T)`, while complement-aware caches use `t_w_max(T, 1)`.
+"""
 @inline _adaptive_1d_window(::Type{T}, kind::Symbol) where {T<:Real} =
     kind === :complement ? t_w_max(T, 1) : tmax(T)
 
 const _ADAPTIVE_1D_CACHES = Dict{Tuple{DataType, Int, Symbol}, Any}()
 const _ADAPTIVE_1D_CACHES_LOCK = ReentrantLock()
 
+"""
+    _build_adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol) where {T<:Real}
+
+Construct the uncached 1D adaptive tables for `max_levels` refinement steps.
+`kind` selects either the regular or complement-aware node window.
+"""
 function _build_adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol) where {T<:Real}
     max_levels >= 0 || throw(ArgumentError("`max_levels` must be nonnegative."))
     tm = _adaptive_1d_window(T, kind)
@@ -72,6 +90,12 @@ function _build_adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol) wher
     return _Adaptive1DCache{T}(tm, initial_x, initial_w, initial_c, xs, ws, cs)
 end
 
+"""
+    _adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol=:regular) where {T<:Real}
+
+Look up or build the shared 1D adaptive cache for the given element type,
+level count, and cache `kind`.
+"""
 function _adaptive_1d_cache(::Type{T}, max_levels::Int, kind::Symbol=:regular) where {T<:Real}
     key = (T, max_levels, kind)
     Base.@lock _ADAPTIVE_1D_CACHES_LOCK begin
@@ -109,6 +133,12 @@ end
 const _ADAPTIVE_TENSOR_CACHES = Dict{Tuple{DataType, Int, Int}, Any}()
 const _ADAPTIVE_TENSOR_CACHES_LOCK = ReentrantLock()
 
+"""
+    _build_adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Real}
+
+Construct the uncached tensor-product adaptive tables used by the 2D and 3D
+adaptive integrators.
+"""
 function _build_adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Real}
     max_levels >= 0 || throw(ArgumentError("`max_levels` must be nonnegative."))
     tm = tmax(T, D)
@@ -139,6 +169,12 @@ function _build_adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where 
     return _AdaptiveTensorCache{T}(tm, initial_x, initial_w, xs, ws)
 end
 
+"""
+    _adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Real}
+
+Look up or build the shared tensor-product adaptive cache for dimension `D`
+and refinement depth `max_levels`.
+"""
 function _adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where {T<:Real}
     key = (T, D, max_levels)
     Base.@lock _ADAPTIVE_TENSOR_CACHES_LOCK begin

@@ -4,7 +4,13 @@
     # Default-domain overload: integrate over [-1, 1]^2.
     f_default(x, y) = x^2 + y^2 + one(x)
     exact_default = 20 / 3
-    @test isapprox(integrate2D(f_default, x, w, h), exact_default, atol=1e-12)
+    val_default = integrate2D(f_default, x, w, h)
+    @test isapprox(val_default, exact_default, atol=1e-12)
+    run_avx_checks() do
+        val_default_avx = integrate2D_avx(f_default, SVector(-1.0, -1.0), SVector(1.0, 1.0), x, w, h)
+        @test isapprox(val_default_avx, exact_default, atol=1e-12)
+        @test isapprox(val_default_avx, val_default, atol=1e-12)
+    end
 
     # General bounded-domain SVector overload with an analytic reference.
     a, b = -2.0, 3.0
