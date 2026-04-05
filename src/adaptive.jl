@@ -16,12 +16,6 @@
 
 # Adaptive integration functions
 
-@inline function _require_cache_levels(cache, max_levels::Int)
-    length(cache.xs) >= max_levels ||
-        throw(ArgumentError("provided adaptive cache supports $(length(cache.xs)) levels, but `max_levels=$(max_levels)` was requested."))
-    return cache
-end
-
 """
     adaptive_integrate_1D(::Type{T}, f, a, b; rtol, atol, max_levels::Int=16, warn::Bool=true, cache=nothing)
 
@@ -65,8 +59,9 @@ function adaptive_integrate_1D(::Type{T}, f::F, a, b;
         w_level = cache1d.ws[level]
         @inbounds for i in eachindex(x_level)
             xk = x_level[i]
-            Δxxk = Δx * xk
-            s_new += w_level[i] * (f(x₀ + Δxxk) + f(x₀ - Δxxk))
+            xp = Δx * xk + x₀
+            xm = -Δx * xk + x₀
+            s_new += w_level[i] * (f(xp) + f(xm))
         end
 
         s_total += s_new
@@ -79,7 +74,7 @@ function adaptive_integrate_1D(::Type{T}, f::F, a, b;
         old_res = new_res
     end
     if warn && max_levels > 0
-        @warn "adaptive_integrate_1D reached max_levels without meeting the requested tolerance." max_levels estimated_error=err_est target=_error_target(old_res, rtol_T, atol_T) value=old_res rtol=rtol_T atol=atol_T
+        @warn "adaptive_integrate_1D reached max_levels without meeting the requested tolerance." max_levels estimated_error = err_est target = _error_target(old_res, rtol_T, atol_T) value = old_res rtol = rtol_T atol = atol_T
     end
     return old_res
 end
@@ -103,24 +98,27 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
               _require_cache_levels(cache, max_levels)
     half = _half(T)
     h = cache2d.tm * half
-    w0 = T(π) * half
+    w0 = _half_pi(T)
+    w0² = w0 * w0
 
     # Helper to evaluate symmetric 4 quadrant points
     @inline function eval_quadrants(xi, yi, wi, wj)
         dx, dy = Δx * xi, Δy * yi
-        return wi * wj * (f(x₀ + dx, y₀ + dy) + f(x₀ - dx, y₀ + dy) +
-                          f(x₀ + dx, y₀ - dy) + f(x₀ - dx, y₀ - dy))
+        xp, xm = x₀ + dx, x₀ - dx
+        yp, ym = y₀ + dy, y₀ - dy
+        return wi * wj * (f(xp, yp) + f(xm, yp) + f(xp, ym) + f(xm, ym))
     end
 
     # Helper to evaluate symmetric axis points
     @inline function eval_axes(val, wk)
         dx, dy = Δx * val, Δy * val
-        return wk * w0 * (f(x₀ + dx, y₀) + f(x₀ - dx, y₀) +
-                          f(x₀, y₀ + dy) + f(x₀, y₀ - dy))
+        xp, xm = x₀ + dx, x₀ - dx
+        yp, ym = y₀ + dy, y₀ - dy
+        return wk * w0 * (f(xp, y₀) + f(xm, y₀) + f(x₀, yp) + f(x₀, ym))
     end
 
     # Initial Level 0 (h, 2h)
-    s_total = (w0^2) * f(x₀, y₀)
+    s_total = w0² * f(x₀, y₀)
     @inbounds for i in 1:2
         xi, wi = cache2d.initial_x[i], cache2d.initial_w[i]
         for j in 1:2
@@ -130,7 +128,7 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
         s_total += eval_axes(xi, wi)
     end
 
-    old_res = Δx * Δy * h^2 * s_total
+    old_res = Δx * Δy * (h * h) * s_total
 
     err_est = zero(T)
     for level in 1:max_levels
@@ -153,7 +151,7 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
         end
 
         s_total += s_new
-        new_res = Δx * Δy * h^2 * s_total
+        new_res = Δx * Δy * (h * h) * s_total
         err_est = abs(new_res - old_res)
 
         if err_est <= _error_target(new_res, rtol_T, atol_T)
@@ -162,10 +160,101 @@ function adaptive_integrate_2D(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2
         old_res = new_res
     end
     if warn && max_levels > 0
-        @warn "adaptive_integrate_2D reached max_levels without meeting the requested tolerance." max_levels estimated_error=err_est target=_error_target(old_res, rtol_T, atol_T) value=old_res rtol=rtol_T atol=atol_T
+        @warn "adaptive_integrate_2D reached max_levels without meeting the requested tolerance." max_levels estimated_error = err_est target = _error_target(old_res, rtol_T, atol_T) value = old_res rtol = rtol_T atol = atol_T
     end
     return old_res
 end
+
+function adaptive_integrate_2D_test(::Type{T}, f::S, low::SVector{2,T}, up::SVector{2,T};
+    rtol=nothing, atol::Real=0, max_levels::Int=8,
+    warn::Bool=true, cache=nothing) where {T<:Real,S}
+    rtol_T, atol_T = _resolve_tolerances(T; rtol=rtol, atol=atol)
+    Δx, x₀ = _midpoint_radius(low[1], up[1])
+    Δy, y₀ = _midpoint_radius(low[2], up[2])
+    cache2d = cache === nothing ? adaptive_cache_2D(T; max_levels=max_levels) :
+              _require_cache_levels(cache, max_levels)
+    half = _half(T)
+    h = cache2d.tm * half
+    w0 = _half_pi(T)
+    w0² = w0 * w0
+
+    # Helper to evaluate symmetric 4 quadrant points
+    @inline function eval_quadrants(xi, yi, wi, wj)
+        dx, dy = Δx * xi, Δy * yi
+        xp, xm = x₀ + dx, x₀ - dx
+        yp, ym = y₀ + dy, y₀ - dy
+        return wi * wj * (f(xp, yp) + f(xm, yp) + f(xp, ym) + f(xm, ym))
+    end
+
+    # Helper to evaluate symmetric axis points
+    @inline function eval_axes(val, wk)
+        dx, dy = Δx * val, Δy * val
+        xp, xm = x₀ + dx, x₀ - dx
+        yp, ym = y₀ + dy, y₀ - dy
+        return wk * w0 * (f(xp, y₀) + f(xm, y₀) + f(x₀, yp) + f(x₀, ym))
+    end
+
+    # Initial Level 0 (h, 2h)
+    s_total = w0² * f(x₀, y₀)
+    @inbounds for i in 1:2
+        xi, wi = cache2d.initial_x[i], cache2d.initial_w[i]
+        @simd for j in 1:2
+            xj, wj = cache2d.initial_x[j], cache2d.initial_w[j]
+            s_total += eval_quadrants(xi, xj, wi, wj)
+        end
+        s_total += eval_axes(xi, wi)
+    end
+
+    old_res = Δx * Δy * (h * h) * s_total
+
+    err_est = zero(T)
+
+    for level in 1:max_levels
+        h *= half
+        s_new = zero(T)
+        x_level = cache2d.xs[level]
+        w_level = cache2d.ws[level]
+        n = length(x_level)
+
+        @inbounds begin
+            # odd i: all j contribute, plus axis terms
+            for i in 1:2:n
+                xi = x_level[i]
+                wi = w_level[i]
+
+                @simd for j in 1:n
+                    s_new += eval_quadrants(xi, x_level[j], wi, w_level[j])
+                end
+
+                s_new += eval_axes(xi, wi)
+            end
+
+            # even i: only odd j contribute
+            for i in 2:2:n
+                xi = x_level[i]
+                wi = w_level[i]
+
+                @simd for j in 1:2:n
+                    s_new += eval_quadrants(xi, x_level[j], wi, w_level[j])
+                end
+            end
+        end
+
+        s_total += s_new
+        new_res = Δx * Δy * (h * h) * s_total
+        err_est = abs(new_res - old_res)
+
+        if err_est <= _error_target(new_res, rtol_T, atol_T)
+            return new_res
+        end
+        old_res = new_res
+    end
+    if warn && max_levels > 0
+        @warn "adaptive_integrate_2D reached max_levels without meeting the requested tolerance." max_levels estimated_error = err_est target = _error_target(old_res, rtol_T, atol_T) value = old_res rtol = rtol_T atol = atol_T
+    end
+    return old_res
+end
+
 
 """
     adaptive_integrate_3D(::Type{T}, f, low::SVector{3,T}, up::SVector{3,T}; rtol, atol, max_levels::Int=5, warn::Bool=true, cache=nothing)
@@ -186,17 +275,22 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
               _require_cache_levels(cache, max_levels)
     half = _half(T)
     h = cache3d.tm * half
-    w₀ = T(π) * half
+    w₀ = _half_pi(T)
+    w₀² = w₀ * w₀
+    w₀³ = w₀² * w₀
 
     # Evaluate a single point in the octant (8 reflections)
     @inline function add_octant(vi, vj, vk, wi, wj, wk)
         dx, dy, dz = Δx * vi, Δy * vj, Δz * vk
+        xp, xm = x₀ + dx, x₀ - dx
+        yp, ym = y₀ + dy, y₀ - dy
+        zp, zm = z₀ + dz, z₀ - dz
         w = wi * wj * wk
         return w * (
-            (f(x₀ + dx, y₀ + dy, z₀ + dz) + f(x₀ - dx, y₀ + dy, z₀ + dz) +
-             f(x₀ + dx, y₀ - dy, z₀ + dz) + f(x₀ - dx, y₀ - dy, z₀ + dz)) +
-            (f(x₀ + dx, y₀ + dy, z₀ - dz) + f(x₀ - dx, y₀ + dy, z₀ - dz) +
-             f(x₀ + dx, y₀ - dy, z₀ - dz) + f(x₀ - dx, y₀ - dy, z₀ - dz))
+            (f(xp, yp, zp) + f(xm, yp, zp) +
+             f(xp, ym, zp) + f(xm, ym, zp)) +
+            (f(xp, yp, zm) + f(xm, yp, zm) +
+             f(xp, ym, zm) + f(xm, ym, zm))
         )
     end
 
@@ -204,27 +298,34 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
     @inline function add_planes(vi, vj, wi, wj)
         dx_i, dy_i, dz_i = Δx * vi, Δy * vi, Δz * vi
         dx_j, dy_j, dz_j = Δx * vj, Δy * vj, Δz * vj
+        xp, xm = x₀ + dx_i, x₀ - dx_i
+        yp_i, ym_i = y₀ + dy_i, y₀ - dy_i
+        yp_j, ym_j = y₀ + dy_j, y₀ - dy_j
+        zp_j, zm_j = z₀ + dz_j, z₀ - dz_j
         w = wi * wj * w₀
         return w * (
-            (f(x₀ + dx_i, y₀ + dy_j, z₀) + f(x₀ - dx_i, y₀ + dy_j, z₀) + f(x₀ + dx_i, y₀ - dy_j, z₀) + f(x₀ - dx_i, y₀ - dy_j, z₀)) +
-            (f(x₀ + dx_i, y₀, z₀ + dz_j) + f(x₀ - dx_i, y₀, z₀ + dz_j) + f(x₀ + dx_i, y₀, z₀ - dz_j) + f(x₀ - dx_i, y₀, z₀ - dz_j)) +
-            (f(x₀, y₀ + dy_i, z₀ + dz_j) + f(x₀, y₀ - dy_i, z₀ + dz_j) + f(x₀, y₀ + dy_i, z₀ - dz_j) + f(x₀, y₀ - dy_i, z₀ - dz_j))
+            (f(xp, yp_j, z₀) + f(xm, yp_j, z₀) + f(xp, ym_j, z₀) + f(xm, ym_j, z₀)) +
+            (f(xp, y₀, zp_j) + f(xm, y₀, zp_j) + f(xp, y₀, zm_j) + f(xm, y₀, zm_j)) +
+            (f(x₀, yp_i, zp_j) + f(x₀, ym_i, zp_j) + f(x₀, yp_i, zm_j) + f(x₀, ym_i, zm_j))
         )
     end
 
     # Evaluate points on the 3 axes (X, Y, Z) - 2 reflections each
     @inline function add_axes(vi, wi)
         dx, dy, dz = Δx * vi, Δy * vi, Δz * vi
-        w = wi * w₀^2
+        xp, xm = x₀ + dx, x₀ - dx
+        yp, ym = y₀ + dy, y₀ - dy
+        zp, zm = z₀ + dz, z₀ - dz
+        w = wi * w₀²
         return w * (
-            (f(x₀ + dx, y₀, z₀) + f(x₀ - dx, y₀, z₀)) +
-            (f(x₀, y₀ + dy, z₀) + f(x₀, y₀ - dy, z₀)) +
-            (f(x₀, y₀, z₀ + dz) + f(x₀, y₀, z₀ - dz))
+            (f(xp, y₀, z₀) + f(xm, y₀, z₀)) +
+            (f(x₀, yp, z₀) + f(x₀, ym, z₀)) +
+            (f(x₀, y₀, zp) + f(x₀, y₀, zm))
         )
     end
 
     # Initial Level 0 (k=1, 2)
-    s_total = (w₀^3) * f(x₀, y₀, z₀)
+    s_total = w₀³ * f(x₀, y₀, z₀)
     @inbounds for i in 1:2
         vi, wi = cache3d.initial_x[i], cache3d.initial_w[i]
         for j in 1:2
@@ -238,7 +339,7 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
         s_total += add_axes(vi, wi)
     end
 
-    old_res = Δx * Δy * Δz * h^3 * s_total
+    old_res = Δx * Δy * Δz * (h * h * h) * s_total
 
     err_est = zero(T)
     for level in 1:max_levels
@@ -250,23 +351,34 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
 
         @inbounds for i in 1:n
             xi, wi = x_level[i], w_level[i]
-            for j in 1:n
-                xj, wj = x_level[j], w_level[j]
-                for k in 1:n
-                    (iseven(i) && iseven(j) && iseven(k)) && continue
-                    s_new += add_octant(xi, xj, x_level[k], wi, wj, w_level[k])
-                end
-                if !(iseven(i) && iseven(j))
+            if isodd(i)
+                for j in 1:n
+                    xj, wj = x_level[j], w_level[j]
+                    for k in 1:n
+                        s_new += add_octant(xi, xj, x_level[k], wi, wj, w_level[k])
+                    end
                     s_new += add_planes(xi, xj, wi, wj)
                 end
-            end
-            if isodd(i)
                 s_new += add_axes(xi, wi)
+            else
+                for j in 1:n
+                    xj, wj = x_level[j], w_level[j]
+                    if isodd(j)
+                        for k in 1:n
+                            s_new += add_octant(xi, xj, x_level[k], wi, wj, w_level[k])
+                        end
+                        s_new += add_planes(xi, xj, wi, wj)
+                    else
+                        for k in 1:2:n
+                            s_new += add_octant(xi, xj, x_level[k], wi, wj, w_level[k])
+                        end
+                    end
+                end
             end
         end
 
         s_total += s_new
-        new_res = Δx * Δy * Δz * h^3 * s_total
+        new_res = Δx * Δy * Δz * (h * h * h) * s_total
         err_est = abs(new_res - old_res)
 
         if err_est <= _error_target(new_res, rtol_T, atol_T)
@@ -275,7 +387,7 @@ function adaptive_integrate_3D(::Type{T}, f::S, low::SVector{3,T}, up::SVector{3
         old_res = new_res
     end
     if warn && max_levels > 0
-        @warn "adaptive_integrate_3D reached max_levels without meeting the requested tolerance." max_levels estimated_error=err_est target=_error_target(old_res, rtol_T, atol_T) value=old_res rtol=rtol_T atol=atol_T
+        @warn "adaptive_integrate_3D reached max_levels without meeting the requested tolerance." max_levels estimated_error = err_est target = _error_target(old_res, rtol_T, atol_T) value = old_res rtol = rtol_T atol = atol_T
     end
     return old_res
 end
@@ -304,7 +416,7 @@ function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
     # Complement coordinates remain accurate well beyond t_x_max(T),
     # so use the weight-based window to avoid truncating endpoint tails.
     h = cache1d.tm * half
-    w0 = T(π) * half
+    w0 = _half_pi(T)
     s_total = w0 * f(x₀, Δx, Δx)
 
     @inbounds for i in 1:2
@@ -351,7 +463,7 @@ function adaptive_integrate_1D_cmpl(::Type{T}, f::F, a, b;
         old_res = new_res
     end
     if warn && max_levels > 0
-        @warn "adaptive_integrate_1D_cmpl reached max_levels without meeting the requested tolerance." max_levels estimated_error=err_est target=_error_target(old_res, rtol_T, atol_T) value=old_res rtol=rtol_T atol=atol_T
+        @warn "adaptive_integrate_1D_cmpl reached max_levels without meeting the requested tolerance." max_levels estimated_error = err_est target = _error_target(old_res, rtol_T, atol_T) value = old_res rtol = rtol_T atol = atol_T
     end
     return old_res
 end

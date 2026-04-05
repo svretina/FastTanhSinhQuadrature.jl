@@ -16,6 +16,66 @@
 
 # 2D Integration functions
 
+@inline function _integrate2D_avx_unit(f::S, x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    @inbounds begin
+        zero_T = zero(T)
+        w₀ = _half_pi(T)
+        w₀² = w₀ * w₀
+        s = w₀² * f(zero_T, zero_T)
+
+        @turbo for i in eachindex(x)
+            wi = w[i]
+            xi = x[i]
+            s += wi * w₀ * (f(xi, zero_T) + f(-xi, zero_T) + f(zero_T, xi) + f(zero_T, -xi))
+        end
+
+        quadrants = zero(T)
+        @turbo for i in eachindex(x), j in eachindex(x)
+            wi = w[i]
+            wj = w[j]
+            xi = x[i]
+            yj = x[j]
+            quadrants += wi * wj * (f(-xi, -yj) + f(xi, -yj) + f(-xi, yj) + f(xi, yj))
+        end
+
+        return (h * h) * (s + quadrants)
+    end
+end
+
+@inline function _integrate2D_avx_general(f::S, low::SVector{2,T}, up::SVector{2,T},
+    x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    @inbounds begin
+        Δx, x₀ = _midpoint_radius(low[1], up[1])
+        Δy, y₀ = _midpoint_radius(low[2], up[2])
+
+        w₀ = _half_pi(T)
+        w₀² = w₀ * w₀
+        s = w₀² * f(x₀, y₀)
+
+        @turbo for i in eachindex(x)
+            wi = w[i]
+            xi = x[i]
+            dx = Δx * xi
+            dy = Δy * xi
+            s += wi * w₀ * (f(x₀ + dx, y₀) + f(x₀ - dx, y₀) + f(x₀, y₀ + dy) + f(x₀, y₀ - dy))
+        end
+
+        quadrants = zero(T)
+        @turbo for i in eachindex(x), j in eachindex(x)
+            wi = w[i]
+            wj = w[j]
+            xi = x[i]
+            yj = x[j]
+            dx = Δx * xi
+            dy = Δy * yj
+            quadrants += wi * wj * (f(x₀ - dx, y₀ - dy) + f(x₀ + dx, y₀ - dy) +
+                                     f(x₀ - dx, y₀ + dy) + f(x₀ + dx, y₀ + dy))
+        end
+
+        return Δx * Δy * (h * h) * (s + quadrants)
+    end
+end
+
 """
     integrate2D(f, x, w, h)
 
@@ -38,16 +98,16 @@ function integrate2D(f::S, low::SVector{2,T}, up::SVector{2,T},
         Δx, x₀ = _midpoint_radius(low[1], up[1])
         Δy, y₀ = _midpoint_radius(low[2], up[2])
 
-        w₀ = T(π) / 2
-        s = w₀^2 * f(x₀, y₀)
+        w₀ = _half_pi(T)
+        w₀² = w₀ * w₀
+        s = w₀² * f(x₀, y₀)
         for k in eachindex(x)
             wk = w[k]
             Δxk = Δx * x[k]
             Δyk = Δy * x[k]
             xk_p, xk_m = x₀ + Δxk, x₀ - Δxk
             yk_p, yk_m = y₀ + Δyk, y₀ - Δyk
-            s += wk * w₀ * (f(xk_p, y₀) + f(xk_m, y₀) +
-                            f(x₀, yk_p) + f(x₀, yk_m))
+            s += wk * w₀ * (f(xk_p, y₀) + f(xk_m, y₀) + f(x₀, yk_p) + f(x₀, yk_m))
         end
 
         for i in eachindex(x)
@@ -66,7 +126,7 @@ function integrate2D(f::S, low::SVector{2,T}, up::SVector{2,T},
             s += wi * inner_s
         end
     end
-    return Δx * Δy * h^2 * s
+    return Δx * Δy * (h * h) * s
 end
 
 """
@@ -109,35 +169,10 @@ SIMD-accelerated 2D integration over `[low, up]` Using `LoopVectorization`.
 """
 function integrate2D_avx(f::S, low::SVector{2,T}, up::SVector{2,T},
     x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
-    Δx, x₀ = _midpoint_radius(low[1], up[1])
-    Δy, y₀ = _midpoint_radius(low[2], up[2])
-
-    w₀ = T(π) / 2
-    s = w₀^2 * f(x₀, y₀)
-    @turbo for k in eachindex(x)
-        wk = w[k]
-        Δxk = Δx * x[k]
-        Δyk = Δy * x[k]
-        s += wk * w₀ * (f(x₀ + Δxk, y₀) + f(x₀ - Δxk, y₀) +
-                        f(x₀, y₀ + Δyk) + f(x₀, y₀ - Δyk))
+    if low[1] == -one(T) && low[2] == -one(T) && up[1] == one(T) && up[2] == one(T)
+        return _integrate2D_avx_unit(f, x, w, h)
     end
-
-    for i in eachindex(x)
-        wi = w[i]
-        Δxxi = Δx * x[i]
-        xi_p = x₀ + Δxxi
-        xi_m = x₀ - Δxxi
-        inner_s = zero(T)
-        @turbo for j in eachindex(x)
-            wj = w[j]
-            Δxyi = Δy * x[j]
-            yj_p = y₀ + Δxyi
-            yj_m = y₀ - Δxyi
-            inner_s += wj * (f(xi_m, yj_m) + f(xi_p, yj_m) + f(xi_m, yj_p) + f(xi_p, yj_p))
-        end
-        s += wi * inner_s
-    end
-    return Δx * Δy * h^2 * s
+    return _integrate2D_avx_general(f, low, up, x, w, h)
 end
 
 """

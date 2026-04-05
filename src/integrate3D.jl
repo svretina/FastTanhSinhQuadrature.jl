@@ -16,62 +16,128 @@
 
 # 3D Integration functions
 
+@inline function _integrate3D_avx_unit(f::S, x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    @inbounds begin
+        zero_T = zero(T)
+        w₀ = _half_pi(T)
+        w₀² = w₀ * w₀
+        w₀³ = w₀² * w₀
+        total_sum = w₀³ * f(zero_T, zero_T, zero_T)
+
+        @turbo for i in eachindex(x)
+            wi = w[i]
+            xi = x[i]
+            total_sum += wi * w₀² * (
+                f(xi, zero_T, zero_T) + f(-xi, zero_T, zero_T) +
+                f(zero_T, xi, zero_T) + f(zero_T, -xi, zero_T) +
+                f(zero_T, zero_T, xi) + f(zero_T, zero_T, -xi)
+            )
+        end
+
+        plane_sum = zero(T)
+        @turbo for i in eachindex(x), j in eachindex(x)
+            wi = w[i]
+            wj = w[j]
+            xi = x[i]
+            xj = x[j]
+            plane_sum += wi * wj * w₀ * (
+                f(xi, xj, zero_T) + f(-xi, xj, zero_T) + f(xi, -xj, zero_T) + f(-xi, -xj, zero_T) +
+                f(xi, zero_T, xj) + f(-xi, zero_T, xj) + f(xi, zero_T, -xj) + f(-xi, zero_T, -xj) +
+                f(zero_T, xi, xj) + f(zero_T, -xi, xj) + f(zero_T, xi, -xj) + f(zero_T, -xi, -xj)
+            )
+        end
+
+        octant_sum = zero(T)
+        @turbo for i in eachindex(x), j in eachindex(x), k in eachindex(x)
+            wi = w[i]
+            wj = w[j]
+            wk = w[k]
+            xi = x[i]
+            xj = x[j]
+            xk = x[k]
+            octant_sum += wi * wj * wk * (
+                f(xi, xj, xk) + f(-xi, xj, xk) + f(xi, -xj, xk) + f(-xi, -xj, xk) +
+                f(xi, xj, -xk) + f(-xi, xj, -xk) + f(xi, -xj, -xk) + f(-xi, -xj, -xk)
+            )
+        end
+
+        return (h * h * h) * (total_sum + plane_sum + octant_sum)
+    end
+end
+
+@inline function _integrate3D_avx_general(f::S, low::SVector{3,T}, up::SVector{3,T},
+    x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
+    @inbounds begin
+        Δx, x₀ = _midpoint_radius(low[1], up[1])
+        Δy, y₀ = _midpoint_radius(low[2], up[2])
+        Δz, z₀ = _midpoint_radius(low[3], up[3])
+        w₀ = _half_pi(T)
+        w₀² = w₀ * w₀
+        w₀³ = w₀² * w₀
+        total_sum = w₀³ * f(x₀, y₀, z₀)
+
+        @turbo for i in eachindex(x)
+            wi = w[i]
+            xi = x[i]
+            dx = Δx * xi
+            dy = Δy * xi
+            dz = Δz * xi
+            total_sum += wi * w₀² * (
+                f(x₀ + dx, y₀, z₀) + f(x₀ - dx, y₀, z₀) +
+                f(x₀, y₀ + dy, z₀) + f(x₀, y₀ - dy, z₀) +
+                f(x₀, y₀, z₀ + dz) + f(x₀, y₀, z₀ - dz)
+            )
+        end
+
+        plane_sum = zero(T)
+        @turbo for i in eachindex(x), j in eachindex(x)
+            wi = w[i]
+            wj = w[j]
+            xi = x[i]
+            xj = x[j]
+            dx = Δx * xi
+            dy_i = Δy * xi
+            dy = Δy * xj
+            dz = Δz * xj
+            plane_sum += wi * wj * w₀ * (
+                f(x₀ + dx, y₀ + dy, z₀) + f(x₀ - dx, y₀ + dy, z₀) + f(x₀ + dx, y₀ - dy, z₀) + f(x₀ - dx, y₀ - dy, z₀) +
+                f(x₀ + dx, y₀, z₀ + dz) + f(x₀ - dx, y₀, z₀ + dz) + f(x₀ + dx, y₀, z₀ - dz) + f(x₀ - dx, y₀, z₀ - dz) +
+                f(x₀, y₀ + dy_i, z₀ + dz) + f(x₀, y₀ - dy_i, z₀ + dz) + f(x₀, y₀ + dy_i, z₀ - dz) + f(x₀, y₀ - dy_i, z₀ - dz)
+            )
+        end
+
+        octant_sum = zero(T)
+        @turbo for i in eachindex(x), j in eachindex(x), k in eachindex(x)
+            wi = w[i]
+            wj = w[j]
+            wk = w[k]
+            xi = x[i]
+            xj = x[j]
+            xk = x[k]
+            dx = Δx * xi
+            dy = Δy * xj
+            dz = Δz * xk
+            octant_sum += wi * wj * wk * (
+                f(x₀ + dx, y₀ + dy, z₀ + dz) + f(x₀ - dx, y₀ + dy, z₀ + dz) +
+                f(x₀ + dx, y₀ - dy, z₀ + dz) + f(x₀ - dx, y₀ - dy, z₀ + dz) +
+                f(x₀ + dx, y₀ + dy, z₀ - dz) + f(x₀ - dx, y₀ + dy, z₀ - dz) +
+                f(x₀ + dx, y₀ - dy, z₀ - dz) + f(x₀ - dx, y₀ - dy, z₀ - dz)
+            )
+        end
+
+        return (Δx * Δy * Δz * (h * h * h)) * (total_sum + plane_sum + octant_sum)
+    end
+end
+
 """
     integrate3D(f, x, w, h)
 
 Calculate the 3D integral of `f` over `[-1, 1]^3` using pre-computed nodes/weights.
 """
 function integrate3D(f::S, x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
-    @inbounds begin
-        # Tanh-Sinh weight at t=0 is π/2
-        w0 = T(π) / 2
-        w0sq = w0 * w0
-        w0cub = w0sq * w0
-
-        # 1. The Origin (0,0,0)
-        total_sum = w0cub * f(zero(T), zero(T), zero(T))
-
-        # 2. The Axes (One dimension non-zero)
-        axis_acc = zero(T)
-        for i in eachindex(x)
-            val = x[i]
-            axis_points = (f(val, zero(T), zero(T)) + f(-val, zero(T), zero(T))) +
-                          (f(zero(T), val, zero(T)) + f(zero(T), -val, zero(T))) +
-                          (f(zero(T), zero(T), val) + f(zero(T), zero(T), -val))
-            axis_acc += w[i] * axis_points
-        end
-        total_sum += w0sq * axis_acc
-
-        # 3. The Planes and Octants
-        for i in eachindex(x)
-            wi = w[i]
-            xi = x[i]
-            sub_sum_i = zero(T)
-
-            for j in eachindex(x)
-                wj = w[j]
-                wiwj = wi * wj
-                xj = x[j]
-
-                planes = (f(xi, xj, zero(T)) + f(-xi, xj, zero(T)) + f(xi, -xj, zero(T)) + f(-xi, -xj, zero(T))) +
-                         (f(xi, zero(T), xj) + f(-xi, zero(T), xj) + f(xi, zero(T), -xj) + f(-xi, zero(T), -xj)) +
-                         (f(zero(T), xi, xj) + f(zero(T), -xi, xj) + f(zero(T), xi, -xj) + f(zero(T), -xi, -xj))
-
-                total_sum += wiwj * w0 * planes
-
-                octant_acc = zero(T)
-                for k in eachindex(x)
-                    xk = x[k]
-                    octant_acc += w[k] * (
-                        (f(xi, xj, xk) + f(-xi, xj, xk) + f(xi, -xj, xk) + f(-xi, -xj, xk)) +
-                        (f(xi, xj, -xk) + f(-xi, xj, -xk) + f(xi, -xj, -xk) + f(-xi, -xj, -xk))
-                    )
-                end
-                total_sum += wiwj * octant_acc
-            end
-        end
-    end
-    return (h^3) * total_sum
+    low = SVector{3,T}(-one(T), -one(T), -one(T))
+    up = SVector{3,T}(one(T), one(T), one(T))
+    return integrate3D(f, low, up, x, w, h)
 end
 
 """
@@ -80,52 +146,7 @@ end
 SIMD-accelerated 3D integral over `[-1, 1]^3`.
 """
 function integrate3D_avx(f::S, x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
-    @inbounds begin
-        w0 = T(π) / 2
-        w0sq = w0 * w0
-        w0cub = w0sq * w0
-
-        total_sum = w0cub * f(zero(T), zero(T), zero(T))
-
-        axis_acc = zero(T)
-        @turbo for i in eachindex(x)
-            val = x[i]
-            axis_points = (f(val, zero(T), zero(T)) + f(-val, zero(T), zero(T))) +
-                          (f(zero(T), val, zero(T)) + f(zero(T), -val, zero(T))) +
-                          (f(zero(T), zero(T), val) + f(zero(T), zero(T), -val))
-            axis_acc += w[i] * axis_points
-        end
-        total_sum += w0sq * axis_acc
-
-        for i in eachindex(x)
-            wi = w[i]
-            xi = x[i]
-            sub_sum_i = zero(T)
-
-            for j in eachindex(x)
-                wj = w[j]
-                wiwj = wi * wj
-                xj = x[j]
-
-                planes = (f(xi, xj, zero(T)) + f(-xi, xj, zero(T)) + f(xi, -xj, zero(T)) + f(-xi, -xj, zero(T))) +
-                         (f(xi, zero(T), xj) + f(-xi, zero(T), xj) + f(xi, zero(T), -xj) + f(-xi, zero(T), -xj)) +
-                         (f(zero(T), xi, xj) + f(zero(T), -xi, xj) + f(zero(T), xi, -xj) + f(zero(T), -xi, -xj))
-
-                total_sum += wiwj * w0 * planes
-
-                octant_acc = zero(T)
-                @turbo for k in eachindex(x)
-                    xk = x[k]
-                    octant_acc += w[k] * (
-                        (f(xi, xj, xk) + f(-xi, xj, xk) + f(xi, -xj, xk) + f(-xi, -xj, xk)) +
-                        (f(xi, xj, -xk) + f(-xi, xj, -xk) + f(xi, -xj, -xk) + f(-xi, -xj, -xk))
-                    )
-                end
-                total_sum += wiwj * octant_acc
-            end
-        end
-    end
-    return (h^3) * total_sum
+    return _integrate3D_avx_unit(f, x, w, h)
 end
 
 """
@@ -139,8 +160,8 @@ function integrate3D(f::S, low::SVector{3,T}, up::SVector{3,T},
         Δx, x₀ = _midpoint_radius(low[1], up[1])
         Δy, y₀ = _midpoint_radius(low[2], up[2])
         Δz, z₀ = _midpoint_radius(low[3], up[3])
-        w₀ = T(π) / 2
-        w₀² = w₀^2
+        w₀ = _half_pi(T)
+        w₀² = w₀ * w₀
         w₀³ = w₀² * w₀
         total_sum = w₀³ * f(x₀, y₀, z₀)
 
@@ -191,7 +212,7 @@ function integrate3D(f::S, low::SVector{3,T}, up::SVector{3,T},
         end
     end
 
-    return (Δx * Δy * Δz * h^3) * total_sum
+    return (Δx * Δy * Δz * (h * h * h)) * total_sum
 end
 
 """
@@ -234,63 +255,11 @@ SIMD-accelerated 3D integral over `[low, up]`.
 """
 function integrate3D_avx(f::S, low::SVector{3,T}, up::SVector{3,T},
     x::X, w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
-    @inbounds begin
-        Δx, x₀ = _midpoint_radius(low[1], up[1])
-        Δy, y₀ = _midpoint_radius(low[2], up[2])
-        Δz, z₀ = _midpoint_radius(low[3], up[3])
-        w₀ = T(π) / 2
-        w₀² = w₀ * w₀
-        w₀³ = w₀² * w₀
-        total_sum = w₀³ * f(x₀, y₀, z₀)
-
-        @turbo for i in eachindex(x)
-            wi = w[i]
-            dx, dy, dz = Δx * x[i], Δy * x[i], Δz * x[i]
-
-            axis_sum = (f(x₀ + dx, y₀, z₀) + f(x₀ - dx, y₀, z₀)) +
-                       (f(x₀, y₀ + dy, z₀) + f(x₀, y₀ - dy, z₀)) +
-                       (f(x₀, y₀, z₀ + dz) + f(x₀, y₀, z₀ - dz))
-            total_sum += wi * w₀² * axis_sum
-        end
-
-        for i in eachindex(x)
-            wi = w[i]
-            dx = Δx * x[i]
-            xp, xm = x₀ + dx, x₀ - dx
-            dy_i = Δy * x[i]
-            yp_i, ym_i = y₀ + dy_i, y₀ - dy_i
-
-            for j in eachindex(x)
-                wj = w[j]
-                wiwj = wi * wj
-                dy = Δy * x[j]
-                yp, ym = y₀ + dy, y₀ - dy
-                dz_j = Δz * x[j]
-                zp_j, zm_j = z₀ + dz_j, z₀ - dz_j
-
-                plane_sum = (f(xp, yp, z₀) + f(xm, yp, z₀) + f(xp, ym, z₀) + f(xm, ym, z₀)) +
-                            (f(xp, y₀, zp_j) + f(xm, y₀, zp_j) + f(xp, y₀, zm_j) + f(xm, y₀, zm_j)) +
-                            (f(x₀, yp_i, zp_j) + f(x₀, ym_i, zp_j) + f(x₀, yp_i, zm_j) + f(x₀, ym_i, zm_j))
-
-                total_sum += wiwj * w₀ * plane_sum
-
-                octant_sum = zero(T)
-                @turbo for k in eachindex(x)
-                    wk = w[k]
-                    dz = Δz * x[k]
-                    zp, zm = z₀ + dz, z₀ - dz
-
-                    octant_sum += wk * (
-                        (f(xp, yp, zp) + f(xm, yp, zp) + f(xp, ym, zp) + f(xm, ym, zp)) +
-                        (f(xp, yp, zm) + f(xm, yp, zm) + f(xp, ym, zm) + f(xm, ym, zm))
-                    )
-                end
-                total_sum += wiwj * octant_sum
-            end
-        end
+    if low[1] == -one(T) && low[2] == -one(T) && low[3] == -one(T) &&
+       up[1] == one(T) && up[2] == one(T) && up[3] == one(T)
+        return _integrate3D_avx_unit(f, x, w, h)
     end
-
-    return (Δx * Δy * Δz * h^3) * total_sum
+    return _integrate3D_avx_general(f, low, up, x, w, h)
 end
 
 """

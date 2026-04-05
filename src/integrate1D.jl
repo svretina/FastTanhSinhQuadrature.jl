@@ -23,7 +23,7 @@ Calculate the integral of `f` over `[-1, 1]` using `N` Tanh-Sinh quadrature poin
 """
 function integrate1D(::Type{T}, f::F, N::Int) where {T<:Real,F}
     x, w, h = tanhsinh(T, N)
-    s = T(π) / 2 * f(zero(T))
+    s = _half_pi(T) * f(zero(T))
     @inbounds for i in eachindex(x)
         s += w[i] * (f(-x[i]) + f(x[i]))
     end
@@ -49,7 +49,7 @@ Calculate the integral of `f(x, 1-x, 1+x)` over `[-1, 1]` using `N` points.
 function integrate1D_cmpl(::Type{T}, f::F, N::Int) where {T<:Real,F}
     x, w, h = tanhsinh(T, N)
     # Origin
-    s = T(π) / 2 * f(zero(T), one(T), one(T))
+    s = _half_pi(T) * f(zero(T), one(T), one(T))
     for i in eachindex(x)
         xi = x[i]
         # 1 - xi = ordinate_complement(ti)
@@ -73,7 +73,7 @@ This is a fixed-grid interface: it does not estimate error or accept `rtol`/`ato
 """
 function integrate1D(f::X, x::AbstractVector{T}, w::AbstractVector{T},
     h::T) where {T<:Real,X}
-    s = T(π) / 2 * f(zero(T))
+    s = _half_pi(T) * f(zero(T))
     @inbounds for i in 1:length(x)
         s += w[i] * (f(-x[i]) + f(x[i]))
     end
@@ -91,7 +91,7 @@ function integrate1D(f::S, low::T, up::T, x::X,
     w::W, h::T) where {T<:Real,S,X<:AbstractVector{T},W<:AbstractVector{T}}
     @inbounds begin
         Δx, x₀ = _midpoint_radius(low, up)
-        s = T(π) / 2 * f(x₀)
+        s = _half_pi(T) * f(x₀)
         for i in eachindex(x)
             xp = x₀ + Δx * x[i]
             xm = x₀ - Δx * x[i]
@@ -122,7 +122,7 @@ monitor convergence yourself (for example by doubling `N` until two successive
 results satisfy your desired `rtol`/`atol` criterion).
 """
 function integrate1D_avx(f::S, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
-    s = weight(zero(T)) * f(zero(T))
+    s = _half_pi(T) * f(zero(T))
     @turbo for i in eachindex(x)
         s += w[i] * (f(-x[i]) + f(x[i]))
     end
@@ -137,7 +137,7 @@ This is a fixed-grid interface and does not estimate error internally.
 """
 function integrate1D_avx(f::S, low::T, up::T, x::AbstractVector{T}, w::AbstractVector{T}, h::T) where {T<:Real,S}
     Δx, x₀ = _midpoint_radius(low, up)
-    s = T(π) / 2 * f(x₀)
+    s = _half_pi(T) * f(x₀)
     @turbo for i in 1:length(x)
         Δxxi = Δx * x[i]
         xp = x₀ + Δxxi
