@@ -139,9 +139,8 @@ function integrate1D_avx(f::S, low::T, up::T, x::AbstractVector{T}, w::AbstractV
     Δx, x₀ = _midpoint_radius(low, up)
     s = _half_pi(T) * f(x₀)
     @turbo for i in 1:length(x)
-        Δxxi = Δx * x[i]
-        xp = x₀ + Δxxi
-        xm = x₀ - Δxxi
+        xp = Δx * x[i] + x₀
+        xm = x₀ - Δx * x[i]
         s += w[i] * (f(xm) + f(xp))
     end
     return @fastmath Δx * h * s

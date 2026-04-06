@@ -79,13 +79,10 @@ end
         @turbo for i in eachindex(x)
             wi = w[i]
             xi = x[i]
-            dx = Δx * xi
-            dy = Δy * xi
-            dz = Δz * xi
             total_sum += wi * w₀² * (
-                f(x₀ + dx, y₀, z₀) + f(x₀ - dx, y₀, z₀) +
-                f(x₀, y₀ + dy, z₀) + f(x₀, y₀ - dy, z₀) +
-                f(x₀, y₀, z₀ + dz) + f(x₀, y₀, z₀ - dz)
+                f(Δx * xi + x₀, y₀, z₀) + f(x₀ - Δx * xi, y₀, z₀) +
+                f(x₀, Δy * xi + y₀, z₀) + f(x₀, y₀ - Δy * xi, z₀) +
+                f(x₀, y₀, Δz * xi + z₀) + f(x₀, y₀, z₀ - Δz * xi)
             )
         end
 
@@ -95,14 +92,13 @@ end
             wj = w[j]
             xi = x[i]
             xj = x[j]
-            dx = Δx * xi
-            dy_i = Δy * xi
-            dy = Δy * xj
-            dz = Δz * xj
             plane_sum += wi * wj * w₀ * (
-                f(x₀ + dx, y₀ + dy, z₀) + f(x₀ - dx, y₀ + dy, z₀) + f(x₀ + dx, y₀ - dy, z₀) + f(x₀ - dx, y₀ - dy, z₀) +
-                f(x₀ + dx, y₀, z₀ + dz) + f(x₀ - dx, y₀, z₀ + dz) + f(x₀ + dx, y₀, z₀ - dz) + f(x₀ - dx, y₀, z₀ - dz) +
-                f(x₀, y₀ + dy_i, z₀ + dz) + f(x₀, y₀ - dy_i, z₀ + dz) + f(x₀, y₀ + dy_i, z₀ - dz) + f(x₀, y₀ - dy_i, z₀ - dz)
+                f(Δx * xi + x₀, Δy * xj + y₀, z₀) + f(x₀ - Δx * xi, Δy * xj + y₀, z₀) +
+                f(Δx * xi + x₀, y₀ - Δy * xj, z₀) + f(x₀ - Δx * xi, y₀ - Δy * xj, z₀) +
+                f(Δx * xi + x₀, y₀, Δz * xj + z₀) + f(x₀ - Δx * xi, y₀, Δz * xj + z₀) +
+                f(Δx * xi + x₀, y₀, z₀ - Δz * xj) + f(x₀ - Δx * xi, y₀, z₀ - Δz * xj) +
+                f(x₀, Δy * xi + y₀, Δz * xj + z₀) + f(x₀, y₀ - Δy * xi, Δz * xj + z₀) +
+                f(x₀, Δy * xi + y₀, z₀ - Δz * xj) + f(x₀, y₀ - Δy * xi, z₀ - Δz * xj)
             )
         end
 
@@ -114,14 +110,11 @@ end
             xi = x[i]
             xj = x[j]
             xk = x[k]
-            dx = Δx * xi
-            dy = Δy * xj
-            dz = Δz * xk
             octant_sum += wi * wj * wk * (
-                f(x₀ + dx, y₀ + dy, z₀ + dz) + f(x₀ - dx, y₀ + dy, z₀ + dz) +
-                f(x₀ + dx, y₀ - dy, z₀ + dz) + f(x₀ - dx, y₀ - dy, z₀ + dz) +
-                f(x₀ + dx, y₀ + dy, z₀ - dz) + f(x₀ - dx, y₀ + dy, z₀ - dz) +
-                f(x₀ + dx, y₀ - dy, z₀ - dz) + f(x₀ - dx, y₀ - dy, z₀ - dz)
+                f(Δx * xi + x₀, Δy * xj + y₀, Δz * xk + z₀) + f(x₀ - Δx * xi, Δy * xj + y₀, Δz * xk + z₀) +
+                f(Δx * xi + x₀, y₀ - Δy * xj, Δz * xk + z₀) + f(x₀ - Δx * xi, y₀ - Δy * xj, Δz * xk + z₀) +
+                f(Δx * xi + x₀, Δy * xj + y₀, z₀ - Δz * xk) + f(x₀ - Δx * xi, Δy * xj + y₀, z₀ - Δz * xk) +
+                f(Δx * xi + x₀, y₀ - Δy * xj, z₀ - Δz * xk) + f(x₀ - Δx * xi, y₀ - Δy * xj, z₀ - Δz * xk)
             )
         end
 
@@ -167,28 +160,26 @@ function integrate3D(f::S, low::SVector{3,T}, up::SVector{3,T},
 
         for i in eachindex(x)
             wi = w[i]
-            dx, dy, dz = Δx * x[i], Δy * x[i], Δz * x[i]
-
-            axis_sum = (f(x₀ + dx, y₀, z₀) + f(x₀ - dx, y₀, z₀)) +
-                       (f(x₀, y₀ + dy, z₀) + f(x₀, y₀ - dy, z₀)) +
-                       (f(x₀, y₀, z₀ + dz) + f(x₀, y₀, z₀ - dz))
+            axis_sum = (f(Δx * x[i] + x₀, y₀, z₀) + f(x₀ - Δx * x[i], y₀, z₀)) +
+                       (f(x₀, Δy * x[i] + y₀, z₀) + f(x₀, y₀ - Δy * x[i], z₀)) +
+                       (f(x₀, y₀, Δz * x[i] + z₀) + f(x₀, y₀, z₀ - Δz * x[i]))
             total_sum += wi * w₀² * axis_sum
         end
 
         for i in eachindex(x)
             wi = w[i]
-            dx = Δx * x[i]
-            xp, xm = x₀ + dx, x₀ - dx
-            dy_i = Δy * x[i]
-            yp_i, ym_i = y₀ + dy_i, y₀ - dy_i
+            xp = Δx * x[i] + x₀
+            xm = x₀ - Δx * x[i]
+            yp_i = Δy * x[i] + y₀
+            ym_i = y₀ - Δy * x[i]
 
             for j in eachindex(x)
                 wj = w[j]
                 wiwj = wi * wj
-                dy = Δy * x[j]
-                yp, ym = y₀ + dy, y₀ - dy
-                dz_j = Δz * x[j]
-                zp_j, zm_j = z₀ + dz_j, z₀ - dz_j
+                yp = Δy * x[j] + y₀
+                ym = y₀ - Δy * x[j]
+                zp_j = Δz * x[j] + z₀
+                zm_j = z₀ - Δz * x[j]
 
                 plane_sum = (f(xp, yp, z₀) + f(xm, yp, z₀) + f(xp, ym, z₀) + f(xm, ym, z₀)) +
                             (f(xp, y₀, zp_j) + f(xm, y₀, zp_j) + f(xp, y₀, zm_j) + f(xm, y₀, zm_j)) +
@@ -199,8 +190,8 @@ function integrate3D(f::S, low::SVector{3,T}, up::SVector{3,T},
                 octant_sum = zero(T)
                 for k in eachindex(x)
                     wk = w[k]
-                    dz = Δz * x[k]
-                    zp, zm = z₀ + dz, z₀ - dz
+                    zp = Δz * x[k] + z₀
+                    zm = z₀ - Δz * x[k]
 
                     octant_sum += wk * (
                         (f(xp, yp, zp) + f(xm, yp, zp) + f(xp, ym, zp) + f(xm, ym, zp)) +

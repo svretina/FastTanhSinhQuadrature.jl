@@ -55,9 +55,7 @@ end
         @turbo for i in eachindex(x)
             wi = w[i]
             xi = x[i]
-            dx = Δx * xi
-            dy = Δy * xi
-            s += wi * w₀ * (f(x₀ + dx, y₀) + f(x₀ - dx, y₀) + f(x₀, y₀ + dy) + f(x₀, y₀ - dy))
+            s += wi * w₀ * (f(Δx * xi + x₀, y₀) + f(x₀ - Δx * xi, y₀) + f(x₀, Δy * xi + y₀) + f(x₀, y₀ - Δy * xi))
         end
 
         quadrants = zero(T)
@@ -66,10 +64,8 @@ end
             wj = w[j]
             xi = x[i]
             yj = x[j]
-            dx = Δx * xi
-            dy = Δy * yj
-            quadrants += wi * wj * (f(x₀ - dx, y₀ - dy) + f(x₀ + dx, y₀ - dy) +
-                                     f(x₀ - dx, y₀ + dy) + f(x₀ + dx, y₀ + dy))
+            quadrants += wi * wj * (f(x₀ - Δx * xi, y₀ - Δy * yj) + f(Δx * xi + x₀, y₀ - Δy * yj) +
+                                     f(x₀ - Δx * xi, Δy * yj + y₀) + f(Δx * xi + x₀, Δy * yj + y₀))
         end
 
         return Δx * Δy * (h * h) * (s + quadrants)
@@ -103,24 +99,22 @@ function integrate2D(f::S, low::SVector{2,T}, up::SVector{2,T},
         s = w₀² * f(x₀, y₀)
         for k in eachindex(x)
             wk = w[k]
-            Δxk = Δx * x[k]
-            Δyk = Δy * x[k]
-            xk_p, xk_m = x₀ + Δxk, x₀ - Δxk
-            yk_p, yk_m = y₀ + Δyk, y₀ - Δyk
+            xk_p = Δx * x[k] + x₀
+            xk_m = x₀ - Δx * x[k]
+            yk_p = Δy * x[k] + y₀
+            yk_m = y₀ - Δy * x[k]
             s += wk * w₀ * (f(xk_p, y₀) + f(xk_m, y₀) + f(x₀, yk_p) + f(x₀, yk_m))
         end
 
         for i in eachindex(x)
             wi = w[i]
-            Δxxi = Δx * x[i]
-            xi_p = x₀ + Δxxi
-            xi_m = x₀ - Δxxi
+            xi_p = Δx * x[i] + x₀
+            xi_m = x₀ - Δx * x[i]
             inner_s = zero(T)
             for j in eachindex(x)
                 wj = w[j]
-                Δxyi = Δy * x[j]
-                yj_p = y₀ + Δxyi
-                yj_m = y₀ - Δxyi
+                yj_p = Δy * x[j] + y₀
+                yj_m = y₀ - Δy * x[j]
                 inner_s += wj * (f(xi_m, yj_m) + f(xi_p, yj_m) + f(xi_m, yj_p) + f(xi_p, yj_p))
             end
             s += wi * inner_s
