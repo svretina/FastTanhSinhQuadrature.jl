@@ -216,6 +216,22 @@ end
         end
     end
 
+    @testset "Adaptive integration AVX" begin
+        run_avx_checks() do
+            f1(x) = exp(x)
+            f2(x, y) = x^2 + y^2
+            f3(x, y, z) = x^2 + y^2 + z^2
+            f3exp(x, y, z) = exp(x + y + z)
+            f_cmpl(x, bmx, xma) = inv(sqrt(bmx * xma))
+
+            @test isapprox(adaptive_integrate_1D_avx(Float64, f1, 0.0, 1.0; rtol=1e-8), exp(1.0) - 1, atol=1e-8)
+            @test isapprox(adaptive_integrate_2D_avx(Float64, f2, SVector(-1.0, -1.0), SVector(1.0, 1.0); rtol=1e-8, max_levels=8), 8 / 3, atol=1e-8)
+            @test isapprox(adaptive_integrate_3D_avx(Float64, f3, SVector(-1.0, -1.0, -1.0), SVector(1.0, 1.0, 1.0); rtol=1e-7, max_levels=6), 8.0, atol=1e-7)
+            @test isapprox(adaptive_integrate_3D_avx(Float64, f3exp, SVector(-1.0, -1.0, -1.0), SVector(1.0, 1.0, 1.0); rtol=0.0, atol=0.0, max_levels=6, warn=false), (exp(1.0) - exp(-1.0))^3, atol=1e-11)
+            @test isapprox(adaptive_integrate_1D_cmpl_avx(Float64, f_cmpl, -1.0, 1.0; rtol=1e-10), π, atol=1e-9)
+        end
+    end
+
     @testset "Adaptive warning paths" begin
         @test_logs (:warn, r"adaptive_integrate_2D reached max_levels") adaptive_integrate_2D(
             Float64, (x, y) -> exp(x + y), SVector(-1.0, -1.0), SVector(1.0, 1.0);
@@ -229,6 +245,24 @@ end
             Float64, (x, bmx, xma) -> exp(x) + bmx + xma, -1.0, 1.0;
             rtol=0.0, atol=0.0, max_levels=1, warn=true, cache=adaptive_cache_1D(Float64; max_levels=1, complement=true)
         )
+        run_avx_checks() do
+            @test_logs (:warn, r"adaptive_integrate_1D_avx reached max_levels") adaptive_integrate_1D_avx(
+                Float64, exp, 0.0, 1.0;
+                rtol=0.0, atol=0.0, max_levels=1, warn=true, cache=adaptive_cache_1D(Float64; max_levels=1)
+            )
+            @test_logs (:warn, r"adaptive_integrate_2D_avx reached max_levels") adaptive_integrate_2D_avx(
+                Float64, (x, y) -> exp(x + y), SVector(-1.0, -1.0), SVector(1.0, 1.0);
+                rtol=0.0, atol=0.0, max_levels=1, warn=true, cache=adaptive_cache_2D(Float64; max_levels=1)
+            )
+            @test_logs (:warn, r"adaptive_integrate_3D_avx reached max_levels") adaptive_integrate_3D_avx(
+                Float64, (x, y, z) -> exp(x + y + z), SVector(-1.0, -1.0, -1.0), SVector(1.0, 1.0, 1.0);
+                rtol=0.0, atol=0.0, max_levels=1, warn=true, cache=adaptive_cache_3D(Float64; max_levels=1)
+            )
+            @test_logs (:warn, r"adaptive_integrate_1D_cmpl_avx reached max_levels") adaptive_integrate_1D_cmpl_avx(
+                Float64, (x, bmx, xma) -> exp(x) + bmx + xma, -1.0, 1.0;
+                rtol=0.0, atol=0.0, max_levels=1, warn=true, cache=adaptive_cache_1D(Float64; max_levels=1, complement=true)
+            )
+        end
     end
 
     @testset "Type preservation and inference" begin
@@ -256,7 +290,9 @@ end
         @test inferred_return_type(() -> integrate1D_avx(f1, x32, w32, h32)) === Float32
         @test inferred_return_type(() -> integrate1D_avx(f1, 0.0f0, 1.0f0, x32, w32, h32)) === Float32
         @test inferred_return_type(() -> adaptive_integrate_1D(Float32, f1, 0.0f0, 1.0f0; rtol=1f-5, max_levels=0)) === Float32
+        @test inferred_return_type(() -> adaptive_integrate_1D_avx(Float32, f1, 0.0f0, 1.0f0; rtol=1f-5, max_levels=0)) === Float32
         @test inferred_return_type(() -> adaptive_integrate_1D_cmpl(Float32, f_cmpl, -1.0f0, 1.0f0; rtol=1f-5, max_levels=0)) === Float32
+        @test inferred_return_type(() -> adaptive_integrate_1D_cmpl_avx(Float32, f_cmpl, -1.0f0, 1.0f0; rtol=1f-5, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad(f1, 0.0f0, 1.0f0; max_levels=0)) === Float32
         @test inferred_return_type(() -> quad(f1, 0.0f0, 1.0f0; rtol=1f-5, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad_cmpl(f_cmpl, -1.0f0, 1.0f0; max_levels=0)) === Float32
@@ -275,6 +311,7 @@ end
         @test inferred_return_type(() -> integrate2D_avx(f2, low2_32, up2_32, x32, w32, h32)) === Float32
         @test inferred_return_type(() -> integrate2D_avx(f2, [0.0f0, 0.0f0], [1.0f0, 1.0f0], x32, w32, h32)) === Float32
         @test inferred_return_type(() -> adaptive_integrate_2D(Float32, f2, low2_32, up2_32; rtol=1f-4, max_levels=0)) === Float32
+        @test inferred_return_type(() -> adaptive_integrate_2D_avx(Float32, f2, low2_32, up2_32; rtol=1f-4, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad(f2, low2_32, up2_32; rtol=1f-4, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad(f2, [0.0f0, 0.0f0], [1.0f0, 1.0f0]; rtol=1f-4, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad_split(f2, SVector(0.5f0, 0.5f0), low2_32, up2_32; rtol=1f-4, max_levels=0)) === Float32
@@ -287,6 +324,7 @@ end
         @test inferred_return_type(() -> integrate3D_avx(f3, low3_32, up3_32, x32, w32, h32)) === Float32
         @test inferred_return_type(() -> integrate3D_avx(f3, [0.0f0, 0.0f0, 0.0f0], [1.0f0, 1.0f0, 1.0f0], x32, w32, h32)) === Float32
         @test inferred_return_type(() -> adaptive_integrate_3D(Float32, f3, low3_32, up3_32; rtol=1f-3, max_levels=0)) === Float32
+        @test inferred_return_type(() -> adaptive_integrate_3D_avx(Float32, f3, low3_32, up3_32; rtol=1f-3, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad(f3, low3_32, up3_32; rtol=1f-3, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad(f3, [0.0f0, 0.0f0, 0.0f0], [1.0f0, 1.0f0, 1.0f0]; rtol=1f-3, max_levels=0)) === Float32
         @test inferred_return_type(() -> quad_split(f3, SVector(0.5f0, 0.5f0, 0.5f0), low3_32, up3_32; rtol=1f-3, max_levels=0)) === Float32
