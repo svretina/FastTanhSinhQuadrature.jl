@@ -227,11 +227,23 @@ const jet_functor_cmpl_32 = JetEndpointFunctor1D(1.0f0)
     check_opt(adaptive_integrate_1D, (Type{Float64}, typeof(jet_functor1_64), Float64, Float64))
     check_call(adaptive_integrate_1D, (Type{Float64}, typeof(jet_functor1_64), Float64, Float64))
 
+    check_opt(adaptive_integrate_1D_avx, (Type{Float64}, typeof(func1), Float64, Float64))
+    check_call(adaptive_integrate_1D_avx, (Type{Float64}, typeof(func1), Float64, Float64))
+
+    check_opt(adaptive_integrate_1D_avx, (Type{Float32}, typeof(func1), Float32, Float32))
+    check_call(adaptive_integrate_1D_avx, (Type{Float32}, typeof(func1), Float32, Float32))
+
     check_opt(adaptive_integrate_2D, (Type{Float64}, typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
     check_call(adaptive_integrate_2D, (Type{Float64}, typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
 
+    check_opt(adaptive_integrate_2D_avx, (Type{Float64}, typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
+    check_call(adaptive_integrate_2D_avx, (Type{Float64}, typeof(func2), SVector{2,Float64}, SVector{2,Float64}))
+
     check_opt(adaptive_integrate_2D, (Type{Float32}, typeof(func2), SVector{2,Float32}, SVector{2,Float32}))
     check_call(adaptive_integrate_2D, (Type{Float32}, typeof(func2), SVector{2,Float32}, SVector{2,Float32}))
+
+    check_opt(adaptive_integrate_2D_avx, (Type{Float32}, typeof(func2), SVector{2,Float32}, SVector{2,Float32}))
+    check_call(adaptive_integrate_2D_avx, (Type{Float32}, typeof(func2), SVector{2,Float32}, SVector{2,Float32}))
 
     check_opt(adaptive_integrate_2D, (Type{Float32x2}, typeof(func2), SVector{2,Float32x2}, SVector{2,Float32x2}))
     check_call(adaptive_integrate_2D, (Type{Float32x2}, typeof(func2), SVector{2,Float32x2}, SVector{2,Float32x2}))
@@ -242,8 +254,14 @@ const jet_functor_cmpl_32 = JetEndpointFunctor1D(1.0f0)
     check_opt(adaptive_integrate_3D, (Type{Float64}, typeof(func3), SVector{3,Float64}, SVector{3,Float64}))
     check_call(adaptive_integrate_3D, (Type{Float64}, typeof(func3), SVector{3,Float64}, SVector{3,Float64}))
 
+    check_opt(adaptive_integrate_3D_avx, (Type{Float64}, typeof(func3), SVector{3,Float64}, SVector{3,Float64}))
+    check_call(adaptive_integrate_3D_avx, (Type{Float64}, typeof(func3), SVector{3,Float64}, SVector{3,Float64}))
+
     check_opt(adaptive_integrate_3D, (Type{Float32}, typeof(func3), SVector{3,Float32}, SVector{3,Float32}))
     check_call(adaptive_integrate_3D, (Type{Float32}, typeof(func3), SVector{3,Float32}, SVector{3,Float32}))
+
+    check_opt(adaptive_integrate_3D_avx, (Type{Float32}, typeof(func3), SVector{3,Float32}, SVector{3,Float32}))
+    check_call(adaptive_integrate_3D_avx, (Type{Float32}, typeof(func3), SVector{3,Float32}, SVector{3,Float32}))
 
     check_opt(adaptive_integrate_3D, (Type{Float64x2}, typeof(func3), SVector{3,Float64x2}, SVector{3,Float64x2}))
     check_call(adaptive_integrate_3D, (Type{Float64x2}, typeof(func3), SVector{3,Float64x2}, SVector{3,Float64x2}))
@@ -256,6 +274,12 @@ const jet_functor_cmpl_32 = JetEndpointFunctor1D(1.0f0)
 
     check_opt(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(func_cmpl), Float32, Float32))
     check_call(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(func_cmpl), Float32, Float32))
+
+    check_opt(adaptive_integrate_1D_cmpl_avx, (Type{Float64}, typeof(func_cmpl), Float64, Float64))
+    check_call(adaptive_integrate_1D_cmpl_avx, (Type{Float64}, typeof(func_cmpl), Float64, Float64))
+
+    check_opt(adaptive_integrate_1D_cmpl_avx, (Type{Float32}, typeof(func_cmpl), Float32, Float32))
+    check_call(adaptive_integrate_1D_cmpl_avx, (Type{Float32}, typeof(func_cmpl), Float32, Float32))
 
     check_opt(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(jet_functor_cmpl_32), Float32, Float32))
     check_call(adaptive_integrate_1D_cmpl, (Type{Float32}, typeof(jet_functor_cmpl_32), Float32, Float32))

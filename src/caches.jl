@@ -128,6 +128,12 @@ struct _AdaptiveTensorCache{T}
     initial_w::NTuple{2,T}
     xs::Vector{Vector{T}}
     ws::Vector{Vector{T}}
+    xp::Vector{Vector{T}}
+    xm::Vector{Vector{T}}
+    yp::Vector{Vector{T}}
+    ym::Vector{Vector{T}}
+    zp::Vector{Vector{T}}
+    zm::Vector{Vector{T}}
 end
 
 const _ADAPTIVE_TENSOR_CACHES = Dict{Tuple{DataType, Int, Int}, Any}()
@@ -152,21 +158,33 @@ function _build_adaptive_tensor_cache(::Type{T}, D::Int, max_levels::Int) where 
 
     xs = Vector{Vector{T}}(undef, max_levels)
     ws = Vector{Vector{T}}(undef, max_levels)
+    xp = Vector{Vector{T}}(undef, max_levels)
+    xm = Vector{Vector{T}}(undef, max_levels)
+    yp = Vector{Vector{T}}(undef, max_levels)
+    ym = Vector{Vector{T}}(undef, max_levels)
+    zp = Vector{Vector{T}}(undef, max_levels)
+    zm = Vector{Vector{T}}(undef, max_levels)
     max_k = 2
     for level in 1:max_levels
         h *= half
         max_k *= 2
-        x = Vector{T}(undef, max_k)
-        w = Vector{T}(undef, max_k)
+        current_x = Vector{T}(undef, max_k)
+        current_w = Vector{T}(undef, max_k)
         @inbounds for i in 1:max_k
             ti = T(i) * h
-            x[i] = ordinate(ti)
-            w[i] = weight(ti)
+            current_x[i] = ordinate(ti)
+            current_w[i] = weight(ti)
         end
-        xs[level] = x
-        ws[level] = w
+        xs[level] = current_x
+        ws[level] = current_w
+        xp[level] = Vector{T}(undef, max_k)
+        xm[level] = Vector{T}(undef, max_k)
+        yp[level] = Vector{T}(undef, max_k)
+        ym[level] = Vector{T}(undef, max_k)
+        zp[level] = Vector{T}(undef, max_k)
+        zm[level] = Vector{T}(undef, max_k)
     end
-    return _AdaptiveTensorCache{T}(tm, initial_x, initial_w, xs, ws)
+    return _AdaptiveTensorCache{T}(tm, initial_x, initial_w, xs, ws, xp, xm, yp, ym, zp, zm)
 end
 
 """
